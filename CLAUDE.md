@@ -26,7 +26,7 @@ Flujo: `plan-task` planifica una tarea de ClickUp (spec + slices + QA) → `work
 
 **Configuración por repo, no en las skills.** Los strings exactos de statuses, el gate de calidad, la rama base + CLI de MR y las rutas (bitácora, docs de dominio) viven en `docs/agents/task-workflow.md` de cada proyecto consumidor, que las skills leen al arrancar. En las skills esos valores se nombran como *roles* (planned, in progress, in review, "la rama base", "el gate") — nunca hardcodear un valor de un repo concreto acá.
 
-**Dependencia: [mattpocock/skills](https://github.com/mattpocock/skills).** La suite delega en `grilling`, `domain-modeling`, `to-spec`, `to-tickets`, `tdd`, `code-review` y `triage`, y asume que `setup-matt-pocock-skills` ya generó `docs/agents/issue-tracker.md`, `triage-labels.md` y `domain.md`. Se instala con `npx skills add mattpocock/skills --skill '*' -y` (`setup-gon-skills` lo hace si falta).
+**Dependencia: [mattpocock/skills](https://github.com/mattpocock/skills).** La suite delega en `grilling`, `domain-modeling`, `to-spec`, `to-tickets`, `tdd`, `code-review` y `triage`, y asume que `setup-matt-pocock-skills` ya generó `docs/agents/issue-tracker.md`, `triage-labels.md` y `domain.md`. `setup-gon-skills` resuelve todo esto si falta: instala las skills (`npx skills add mattpocock/skills --skill '*' -y`), corre el setup upstream y lo guía hacia el flujo de la suite con seeds propios de ClickUp (`issue-tracker-clickup.md`, `triage-labels-clickup.md` — el upstream sólo trae GitHub/GitLab/local).
 
 **Tracker: ClickUp obligatorio.** Las skills llaman a las tools MCP `clickup_*` directamente (subtareas, dependencias, statuses, tags). Portarlas a otro tracker requiere adaptar esas llamadas.
 
