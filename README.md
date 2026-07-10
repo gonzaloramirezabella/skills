@@ -12,7 +12,7 @@ Complementan las [skills de ingeniería de Matt Pocock](https://github.com/mattp
 | `work-task` | Ejecuta trabajo planificado de forma autónoma: rama, `[DOCS]` como primer commit, un subagente por slice (TDD + gate), code review del diff, MR y roll-up. Deja todo en *in review*. |
 | `init-task` | Setup mecánico no-interactivo: trae la tarea, crea la rama desde la base y pone el status en *in progress*. Lo usa `work-task` vía subagente. |
 | `setup-gon-skills` | Setup por repo: genera `docs/agents/task-workflow.md` (statuses, gate, ramas, rutas) que las otras tres leen. Correr una vez por proyecto. |
-| `write-handbook` | Crea o actualiza páginas del Handbook (docs de operación para admins, renderizadas en el ADM). Productora opcional referenciada desde `task-workflow.md`; tiene rutas del repo wdetail hardcodeadas. |
+| `write-handbook` | Crea o actualiza páginas del Handbook (docs de operación para admins/operadores). Ruta, formato e idioma salen de la sección Handbook de `task-workflow.md`; sin esa sección no corre. |
 
 ## Instalación
 

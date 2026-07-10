@@ -40,7 +40,11 @@ Every slice must be green on all of these before moving to in-review:
 
 ## Handbook (optional section)
 
-Delete this section if the repo has no operator/admin handbook — `work-task` then skips its handbook step silently.
+Delete this section if the repo has no operator/admin handbook — `work-task` then skips its handbook step silently, and `write-handbook` refuses to run.
 
 - Trigger: `{when the parent's accumulated work warrants a handbook page — describe the signal}`.
 - Producer skill: `{skill name, e.g. write-handbook}`.
+- Root path: `{handbook root, e.g. src/resources/handbook/}` — `{structure: depth, folder naming}`.
+- Page format: `{filename convention}`; required frontmatter: `{fields}`; links between pages: `{convention}`; images/assets: `{convention}`; rendering constraints: `{markdown flavor, raw HTML allowed or not, styling rules}`.
+- Language: `{language of handbook content}`.
+- Rationale: `{path to the ADR/doc explaining these rules, or delete this line}`.

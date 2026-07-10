@@ -30,7 +30,7 @@ Mirá el estado real del repo; no asumas:
 - `git branch -a` — ¿existe una rama de integración (`dev`, `develop`)? Si no, la base será la default.
 - Sistema de build (`Makefile`, `composer.json`, `package.json`, etc.) — proponé comandos concretos de test / análisis estático / formato para el gate.
 - Statuses del workspace de ClickUp: si podés, descubrilos con `clickup_get_list` sobre la lista de trabajo del usuario en vez de adivinar.
-- ¿Existe una skill de handbook (`write-handbook` u otra productora de docs de operación)?
+- ¿Existe una skill de handbook (`write-handbook` u otra productora de docs de operación)? Si hay un directorio de handbook, abrí un par de páginas existentes para inferir el formato (frontmatter, naming, links) y proponerlo en la decisión E.
 
 ### 2. Presentar y preguntar — una decisión por vez
 
@@ -40,7 +40,7 @@ Para cada sección: explicá en una línea qué es y para qué la usan las skill
 - **B. Gate de calidad** — los comandos que cada slice debe pasar en verde antes de *in review* (tests acotables, análisis estático, formato). Los corre el subagente de `work-task` en cada slice y de nuevo tras el code review.
 - **C. Rama base + MR** — de dónde salen las ramas y contra qué se abre el MR; qué CLI (`glab`/`gh`).
 - **D. Ruta de la bitácora** — dónde versiona `work-task` su log de reentrada (default: `plans/work/{parent-id}.md`).
-- **E. Handbook (opcional)** — si el repo tiene docs de operación para humanos: cuál es el trigger y qué skill lo produce. Si no aplica, la sección se omite y `work-task` saltea ese paso.
+- **E. Handbook (opcional)** — si el repo tiene docs de operación para humanos (admins/operadores): el trigger, la skill productora, y los valores que `write-handbook` lee de esta sección — **ruta raíz** y estructura, **formato de página** (naming, frontmatter obligatorio, links/assets, restricciones de render), **idioma**, y el doc de _rationale_ si existe. Proponé lo que hayas encontrado explorando (directorio del handbook, páginas existentes de las que inferir el formato). Si no aplica, la sección se omite: `work-task` saltea el paso y `write-handbook` no corre.
 
 ### 3. Confirmar y escribir
 
