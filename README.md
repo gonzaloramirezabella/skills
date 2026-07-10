@@ -16,8 +16,8 @@ Complementan las [skills de ingeniería de Matt Pocock](https://github.com/mattp
 ## Instalación
 
 ```bash
-npx skills add gonzaloramirezabella/skills --all
-npx skills add mattpocock/skills --all   # dependencia (setup-gon-skills la instala si falta)
+npx skills add gonzaloramirezabella/skills --skill '*' -y
+npx skills add mattpocock/skills --skill '*' -y   # dependencia (setup-gon-skills la instala si falta)
 ```
 
 Después, en el proyecto: `/setup-gon-skills` — verifica dependencias, corre `setup-matt-pocock-skills` si hace falta y genera la configuración del repo.
