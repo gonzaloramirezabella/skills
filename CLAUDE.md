@@ -22,6 +22,7 @@ Flujo: `plan-task` planifica una tarea de ClickUp (spec + slices + QA) → `work
 | `work-task` | Rama, `[DOCS]` como primer commit, un subagente TDD por slice + gate, code review, MR, roll-up. Todo a *in review*. |
 | `init-task` | Setup mecánico: trae la tarea, crea la rama desde la base, status a *in progress*. |
 | `setup-gon-skills` | Se corre una vez por repo: genera `docs/agents/task-workflow.md`. |
+| `setup-project` | Setup inicial de un repo nuevo (Docker + Makefile, AGENTS.md/symlinks, instalación de skills, docs/, primera página del handbook). Orquesta: delega en `setup-gon-skills` y `write-handbook`. |
 | `write-handbook` | Productora de páginas de Handbook (docs de operación para admins/operadores). Ruta, formato e idioma los lee de la sección Handbook de `task-workflow.md`; sin esa sección no corre. |
 
 **Configuración por repo, no en las skills.** Los strings exactos de statuses, el gate de calidad, la rama base + CLI de MR y las rutas (bitácora, docs de dominio) viven en `docs/agents/task-workflow.md` de cada proyecto consumidor, que las skills leen al arrancar. En las skills esos valores se nombran como *roles* (planned, in progress, in review, "la rama base", "el gate") — nunca hardcodear un valor de un repo concreto acá.
