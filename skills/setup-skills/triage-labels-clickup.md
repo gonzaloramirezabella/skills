@@ -14,7 +14,7 @@ Issues live in ClickUp (see `issue-tracker.md`), so each role maps to a **ClickU
 
 Default: each role's tag equals its canonical name.
 
-When a skill mentions a role (e.g. "apply the AFK-ready triage label"), apply the corresponding tag via `clickup_add_tag_to_task` (and remove the previous role's tag via `clickup_remove_tag_from_task` if the issue is moving between roles).
+When a skill mentions a role (e.g. "apply the AFK-ready triage label"), apply the corresponding tag via `clickup-cli task add-tag {task-id} {tag}` (and remove the previous role's tag via `clickup-cli task remove-tag {task-id} {tag}` if the issue is moving between roles).
 
 These triage tags are **independent of** the ClickUp lifecycle statuses (planned / in progress / in review — exact strings in `task-workflow.md`); those are managed by `plan-task` / `work-task`, not by the triage skill.
 

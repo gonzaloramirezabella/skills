@@ -1,13 +1,13 @@
 ---
 name: init-task
-description: Setup mecánico de una tarea de ClickUp — traer la tarea, crear el branch git desde la rama base y poner el status en "iniciado". Usar cuando work-task delega el setup a un subagente no-interactivo, o cuando el usuario pasa un Task ID para sólo dejar el branch creado y la tarea iniciada.
+description: Setup mecánico de una tarea del tracker — traer la tarea, crear el branch git desde la rama base y poner el status en el de trabajo en curso. Usar cuando work-task delega el setup a un subagente no-interactivo, o cuando el usuario pasa un Task ID para sólo dejar el branch creado y la tarea iniciada.
 ---
 
-# Inicializar una tarea de ClickUp (setup mecánico)
+# Inicializar una tarea del tracker (setup mecánico)
 
 **No** planifica ni encadena nada — ese es el trabajo de `work-task`, que llama a esta skill para la parte mecánica.
 
-La rama base, el formato del nombre de branch y el string exacto del status `iniciado` están en `docs/agents/task-workflow.md` — leelo antes del paso 3.
+La rama base, el formato del nombre de branch y el string exacto del status *in-progress* están en `docs/agents/task-workflow.md`; los comandos del tracker, en `docs/agents/issue-tracker.md` (esta skill pide *get task* y *set status* por su rol). Leé los dos antes del paso 2.
 
 ## Contrato: esta skill es no-interactiva
 
@@ -23,7 +23,7 @@ El llamador puede pre-autorizar pasando flags en los argumentos: `allow-closed` 
 
 Argumentos (texto libre del llamador):
 
-- Task ID de ClickUp (obligatorio).
+- Task ID (obligatorio).
 - Opcional: `prefix={feature|fix|chore}` para forzar el prefijo en vez de inferirlo.
 - Opcional: `allow-closed` para seguir aunque la tarea esté cerrada.
 - Opcional: `allow-dirty` para seguir aunque haya cambios sin commitear.
@@ -37,14 +37,14 @@ Si no recibiste un Task ID en los argumentos, terminá inmediatamente con:
 ```
 RESULT: blocked
 blocker: missing_task_id
-detail: No se pasó un Task ID de ClickUp.
+detail: No se pasó un Task ID.
 ```
 
-### 2. Traer tarea de ClickUp
+### 2. Traer la tarea
 
-Usá `clickup_get_task` para obtener título, descripción, status y tags.
+Con la operación *get task*: título, descripción, status y tags.
 
-**Bloqueo — tarea ya cerrada:** si el status es `Done`/`closed`/`completada` y **no** recibiste `allow-closed`, terminá sin tocar nada con:
+**Bloqueo — tarea ya cerrada:** si el status es uno de cierre (el tracker los marca como cerrados) y **no** recibiste `allow-closed`, terminá sin tocar nada con:
 
 ```
 RESULT: blocked
@@ -63,6 +63,7 @@ Si recibiste `prefix=...`, usalo. Si no, inferí el prefijo desde el contexto (t
 Generá el nombre con formato `{prefix}/{task-id}-{slug}`.
 
 **Reglas del slug**:
+- Sin datos personales ni referencia al daño de un incidente (`CODING_STANDARDS.md` § *Lo que no se escribe*): `fix/123-validacion-alta`, nunca `fix/123-emails-pacientes-expuestos`
 - Lowercase
 - Espacios → `-`
 - Sin tildes ni caracteres especiales
@@ -98,9 +99,9 @@ blocker: git_error
 detail: {mensaje del error de git, sin inventar resoluciones}
 ```
 
-### 6. Actualizar status de ClickUp
+### 6. Actualizar el status
 
-Usá `clickup_update_task` para poner el status en **iniciado** (string exacto en `task-workflow.md`).
+Operación *set status* con el string exacto de *in-progress* (`task-workflow.md`).
 
 ### 7. Devolver resultado
 
@@ -111,5 +112,5 @@ RESULT: success
 branch: {branch-name}
 task_id: {task-id}
 task_title: {título de la tarea}
-status: iniciado
+status: {status in-progress}
 ```

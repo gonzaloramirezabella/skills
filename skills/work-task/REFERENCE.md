@@ -1,43 +1,60 @@
 # work-task — referencia operativa
 
-Detalle que el `SKILL.md` deja afuera de la espina. El **mandato del subagente** y el **template de needs-info** los lee el agente principal y los **inyecta en el prompt del subagente** (paso 5b) — el subagente es `general-purpose` y **no** carga este archivo, sólo recibe lo que se le pega.
+Detalle que el `SKILL.md` deja afuera de la espina. El **mandato del slice** (canónico, en otro archivo) lo lee el agente principal y lo **inyecta en el prompt del subagente** (paso 5b) — el subagente es `general-purpose` y **no** carga archivos ni toca el tracker por su cuenta, sólo recibe lo que se le pega.
 
-## Mandato del subagente
+## Mandato del slice — sustituciones
 
-Inyectá este bloque en el prompt del subagente, completando `{slice-id}`, `{parent-id}`, `{branch}`, `{ruta-bitácora}`. El subagente corre el ciclo completo de UN slice, autónomo, sin preguntar nunca. Su mensaje final **es** el dato de retorno (no prosa para un humano).
+El mandato **no vive acá**: es el archivo que `task-workflow.md` § *Paths* declara como *Slice mandate — canonical*, el mismo que un worker automatizado pasa como prompt. Una fuente, todos los consumidores. Leelo, reemplazá los placeholders que declare con los valores de la columna *in-session*, y pegá el resultado completo en el prompt del subagente.
 
-> 1. Leé `docs/agents/task-workflow.md`: de ahí salen los strings exactos de status (**iniciado**, **Revisión**) y los comandos del gate que se mencionan abajo. Confirmá que estás en la rama `{branch}` (`git rev-parse --abbrev-ref HEAD`; si no, `git checkout {branch}`). Status del slice `{slice-id}` → **`iniciado`** (`clickup_update_task`; cargá la tool con `ToolSearch` primero).
-> 2. **Planificá no-interactivo** desde el spec (`clickup_get_task` del slice): plan corto — comportamientos a testear, archivos/áreas a tocar, enfoque en 1-2 frases. **Antes de planificar**, consultá la documentación de dominio vigente en la rama —el `CONTEXT.md` relevante y los ADRs de `docs/adr/`, incluido lo que el paso 3b acaba de aplicar— para alinear terminología y respetar las decisiones ya tomadas. Agregá el plan a la bitácora `{ruta-bitácora}` como bloque con `Estado: ⏳ en progreso` y devolvelo en el resultado.
-> 3. **Implementá invocando la skill `/tdd`** (con la Skill tool, `skill: tdd`) — no reimplementes el ciclo a mano: usá **esa** skill para correr su loop red→green. Las **seams ya están pre-acordadas**: son las que fijan el spec `[SPEC]` del padre, el spec del slice y tu plan del punto 2 — tratálas como confirmadas y arrancá el loop directo, sin preguntar qué testear ni pedir OK. El refactor no es parte del loop (lo dice la propia skill): el slice se cierra con el gate del punto 4.
-> 4. **Gate obligatorio** (todo verde antes de `Revisión`): los comandos del bloque *Quality gate* de `task-workflow.md` — tests acotados a lo nuevo, análisis estático sin errores nuevos, formato aplicado. Rojo persistente tras reintentos razonables → punto 7.
-> 5. **Commit + push.** Conventional commit, tipo por prefijo de rama (`feature/`→`feat`, `fix/`→`fix`, `chore/`→`chore`), stage selectivo **incluyendo la bitácora**, vía HEREDOC para preservar formato:
->    ```
->    {type}({scope}): {description} #{slice-id}
->
->    {detalle técnico — qué cambió, qué comportamiento}
->
->    {trailer Co-Authored-By del modelo actual}
->    ```
->    Después `git push` (un push por slice deja el trabajo a salvo si el loop se cae).
-> 6. Status del slice → **`Revisión`** + **comentario funcional** (`clickup_create_task_comment`, español, lenguaje de negocio, sin nombres de archivo):
->    ```
->    Cambios realizados
->
->    {Qué se resolvió en términos de valor, máx 2 párrafos. Sin detalle técnico.}
->    ```
->    Actualizá la bitácora: bloque del slice → `Estado: ✅ Revisión`, `Resultado: {commit hash}`.
-> 7. **Camino de bloqueo** (gate rojo persistente, ambigüedad que el issue no resuelve, o conflicto de git): aplicá el **template de needs-info** de abajo (el slice queda en `to do` + tag `needs-info`), marcá la bitácora `Estado: ⚠️ needs-info`, y **NO** pases a `Revisión`.
-> 8. **Devolvé un resultado estructurado** (no prosa): `{ slice_id, outcome: "revisión" | "needs-info" | "bloqueado", commit_hash, resumen_una_linea, motivo }`.
+| Placeholder | Valor in-session (work-task) |
+|---|---|
+| `{{SLICE_ID}}` / `{{SLICE_TITLE}}` | id y título de la hija que estás delegando |
+| `{{SLICE_SPEC}}` | la descripción completa del slice (*get task (full description)* — la traés vos: el subagente no toca el tracker) |
+| `{{SPEC_FILE}}` | ruta del archivo temporal donde materializaste el `[SPEC]` (paso 1) |
+| `{{PARENT_ID}}` / `{{WORK_LOG}}` | id del padre / ruta de bitácora de `task-workflow.md` |
+| `{{BRANCH}}` / `{{BASE_BRANCH}}` | rama del padre / rama base de `task-workflow.md` |
+| `{{DOMAIN_DOC}}` | `docs/agents/domain.md` (de ahí salen glosario y ADRs) |
+| `{{GATE}}` | los comandos del bloque **Host** del *Quality gate* de `task-workflow.md` |
+| `{{ENVIRONMENT}}` | "el working dir del host, ya configurado y con los servicios arriba (`task-workflow.md` § *Environment*). Commiteá normal, con los hooks del repo." |
+| `{{PUSH_POLICY}}` | "Pusheá tu commit al final (`git push`): un push por slice deja el trabajo a salvo si el loop se cae. No toques el tracker — statuses y comentarios los maneja el agente principal." |
+
+Si el mandato declara un placeholder que no está en esta tabla, resolvelo con `docs/agents/` y agregá la fila.
+
+Dos deltas propios de esta skill, que van **después** del mandato en el mismo prompt:
+
+- **Implementá invocando la skill `/tdd`** (Skill tool, `skill: tdd`) en el paso de TDD del mandato, en vez de correr el ciclo red→green a mano. Las seams ya están pre-acordadas por el `[SPEC]` y el cuerpo del slice: arrancá el loop directo, sin preguntar qué testear ni pedir OK.
+- El commit **no** lleva trailer `Co-Authored-By` ni ninguna otra firma del modelo.
+
+## Mandato de QA — sustituciones (paso 7b)
+
+El archivo de la línea *QA mandate* de `task-workflow.md` § *Paths*; el mismo que corre el worker en el sandbox y `qa-task` a mano. Sólo lectura para el subagente: no commitea ni toca el tracker.
+
+| Placeholder | Valor in-session (work-task / qa-task) |
+|---|---|
+| `{{PARENT_ID}}` / `{{PARENT_TITLE}}` / `{{QA_ID}}` | id y título del padre / id de la hija `[QA]` |
+| `{{QA_CHECKLIST}}` | el checklist renderizado: pendientes numerados (`1. {texto}`, con «(❌ en el ciclo anterior — re-verificar)» si lo tenía); resueltos tachados (`~~n. {texto}~~ (✅ ya verificado | 🙋 queda para humano)`). El número es el `index` que devuelve el subagente |
+| `{{SPEC_FILE}}` / `{{WORK_LOG}}` | spec materializado (paso 1) / ruta de bitácora |
+| `{{BRANCH}}` / `{{BASE_BRANCH}}` | rama del padre / rama base |
+| `{{APP_UP}}` | los comandos del bloque **Host** de `task-workflow.md` § *QA*, como lista `- \`cmd\`` |
+| `{{APP_URL}}` | la *App URL (host)* de esa sección |
+| `{{BROWSER_LANE}}` | `yes` si `playwright-cli --version` responde en el host; si no, `no` (el valor de la sección aplica al sandbox) |
+| `{{CREDENTIALS}}` | la línea *Credentials* de esa sección |
+| `{{ENVIRONMENT}}` | la misma prosa que en el mandato del slice |
+
+Resultado: bloque `<qa>` con `items[]` (`index`, `verdict` pass/fail/human, `evidence`, y en un fail `expected`/`observed`/`steps`). La línea de veredicto que escribís bajo cada item y el cuerpo de la hija `[FIX]` siguen el formato de `task-workflow.md` § *QA*.
 
 ## needs-info — template
 
-Lo aplican tanto el subagente (mandato punto 7) como el padre (paso 5c, si la verificación de estado durable falla). Es el outcome `needs-info` de `triage` por su **path directo** (sin grilling, sin esperar):
+Lo aplica el **agente principal** (los subagentes no tocan el tracker) cuando el subagente devuelve `blocked`, cuando la verificación del commit falla, o cuando **el gate que corre el padre queda rojo** tras el intento de arreglo (paso 5c). Es el outcome `needs-info` de `triage` por su **path directo** (sin grilling, sin esperar):
 
-1. Comentario que **empieza con** el disclaimer obligatorio de triage:
+1. Slice → *backlog* (*set status*, si lo habías movido a *in-progress*) + tag `needs-info` (*add tag*).
+2. Comentario en el **padre** (operación *comment*) que **empieza con** la referencia al slice y el disclaimer obligatorio de triage:
    ```
+   ⚠️ Slice {id} ({título}) → needs-info
+
    > *This was generated by AI during triage.*
    ```
-2. Seguido del template de Triage Notes:
+3. Seguido del template de Triage Notes:
    ```markdown
    ## Triage Notes
 
@@ -47,53 +64,91 @@ Lo aplican tanto el subagente (mandato punto 7) como el padre (paso 5c, si la ve
    **What we still need from you (@me):**
    - {pregunta específica y accionable, no "dar más info"}
    ```
-3. Aplicá el rol `needs-info` al slice (queda en `to do` + tag `needs-info`).
 4. Bitácora: bloque → `Estado: ⚠️ needs-info` con el motivo en `Resultado:`.
 
-El slice **no** pasa a `Revisión`. (Distinción clave: **bloqueado por dependencia ≠ `needs-info`**. El bloqueado queda en `to do` y se difiere; sólo el problema real va a `needs-info`.)
+El slice **no** pasa a *in-review*. (Distinción clave: **bloqueado por dependencia ≠ needs-info**. El bloqueado se queda en *backlog* sin tag y se difiere; sólo el problema real recibe el tag.)
 
 ## MR del cierre — comando
 
-CLI y rama target según `task-workflow.md`. Forma para GitLab (`glab`); con otro CLI (p. ej. `gh pr create`), misma estructura de título/descripción:
+CLI y rama target según `task-workflow.md` (*MR CLI* y *Base/integration branch*). La descripción tiene la **forma de la skill `pr`** (resumen como el visual mínimo que explica el cambio, evidencia antes/después, riesgo de merge) con los encabezados en español de España, que es el idioma de los MR del repo; el worker automatizado arma exactamente la misma forma. Invocá `pr` (Skill tool) para elegir el visual del resumen si la lista de slices no alcanza (un diff de árbol o un call tree cuando el cambio es estructural). Forma con `glab`; con otro CLI (p. ej. `gh pr create`), misma estructura:
 
 ```bash
-glab mr create \
+{MR CLI} mr create \
   --source-branch "{branch}" \
   --target-branch "{base}" \
   --title "{type}({scope}): {resumen del padre}" \
   --description "$(cat <<'EOF'
-## Cambios
-{resumen técnico de los slices incluidos + docs si hubo [DOCS]}
+## Resumen
+- Slice {id}: {una línea de qué hace}
+{+ docs si hubo [DOCS]}
+{visual opcional: diff de árbol, call tree o pseudocódigo, sólo si aclara más que la lista}
+📖 Handbook: {ruta de la página creada/actualizada — omitir si no hubo señal}
 
-## ClickUp
-https://app.clickup.com/t/{PARENT_ID}
+## Evidencia
+- **Antes:** {el síntoma como lo veía un usuario (fix) o lo que no existía (feature)}
+  **Después:** gate verde sobre `{hash}`: `{comando 1}` · `{comando 2}`   ← el gate que corriste vos, no el que declaró el subagente
+
+## Riesgo de merge
+**Puerta:** {de dos vías | de una vía}      ← de una vía si hay migración destructiva, dato tocado o algo que un revert no deshace
+
+{nota opcional: por qué}
+
+**Radio de impacto:** {una o dos palabras}
+
+{nota opcional: ramificaciones — orden de deploy, consumidores, móvil}
+
+🔍 Code review: {sin hallazgos | fixes aplicados | {n} hallazgos anotados}   ← omitir las líneas de review si no hubo nada
+Hallazgos anotados para el revisor:   ← los del cierre que quedaron sin aplicar (ambiguos o de diseño)
+- {hallazgo}
+
+## Tarea
+{URL de la tarea — operación *task web URL* de `issue-tracker.md`}
 EOF
 )" \
   --yes
 ```
 
-Si el MR de esa rama ya existe, el CLI lo dice; capturá la URL existente en vez de fallar.
+El MR es el destino de **todo el detalle técnico del cierre** — el tracker no lo repite. Detalle técnico no es detalle del incidente: ni datos personales ni qué daño hubo, a quién ni cuánto duró (`CODING_STANDARDS.md` § *Lo que no se escribe*); si hace falta conservarlo, va en una tarea privada del tracker y el MR la enlaza. Si el MR de esa rama ya existe, el CLI lo dice; capturá la URL existente en vez de fallar.
 
-## Comentario roll-up del cierre
+## Informe de cierre — bloque `## Resumen` del padre (paso 8.4)
 
-Armado leyendo la bitácora (punto de entrada para saber qué revisar):
+Para **negocio**: español, funcional, sin nombres de archivos, clases ni comandos. El prefijo de la rama decide el tono de la apertura — `fix/` abre con el síntoma como lo ve un usuario y su **causa raíz** en una frase de negocio neutra — sin afectados, sin datos personales, sin daño (y, si aporta, por qué no se notaba antes); `feature/`/`chore/` abre con qué se pidió y para qué, más corto. Se **upsertea al principio** de la descripción del padre — es lo primero que lee quien abre la tarea; `## Planificado` y el resto quedan debajo. Si ya hay un `## Resumen` (re-run), se reemplaza entero; el resto de la descripción no se toca.
+
+Si el repo tiene un worker automatizado, éste publica el mismo bloque (su informe lo redacta el mandato de cierre) — mantenelos alineados.
+
+```markdown
+## Resumen
+
+{Apertura: 1-3 frases según el tipo de arriba.}
+
+### Qué se hizo
+
+- {un bullet por resultado funcional — qué cambia para quien usa la plataforma; ni slices ni archivos}
+
+{Sólo si existe: "⚠️ {advertencia de puesta en producción — orden de deploy, migración, dato a tocar}".}
+
+### Estado
+
+- Rama: `{branch}` → MR: {URL}
+- ⏳ Pendiente: {HITL sin drenar, needs-info, items de QA ❌ o 🙋 — o "nada"}
+```
+
+## Comentario de cierre
+
+**Un párrafo, y nada más** — es lo único que lee negocio en el feed de comentarios; quien quiera más abre la descripción (`## Resumen` + `### Estado`) o el MR. Lo redacta el mandato de cierre (campo `comment` del `<close>`): 2-4 frases con qué funcionalidad quedó o qué se arregló — sin cómo, sin rama, sin archivos, sin nombres de slices. Si el repo tiene un worker automatizado, éste publica el mismo formato — mantenelos alineados.
 
 ```
-✅ Listo para revisión
+{El párrafo del mandato de cierre, tal cual.}
 
-- {slice-id-1}: {una línea de qué hace}
-- {slice-id-2}: {una línea}
-...
+⏳ Pendiente:                     ← sólo si hay; el padre se queda en progreso
+- {slice {id} needs-info | slice {id} HITL sin drenar | ...}
 
-🧪 QA manual pendiente (HITL): {qa-id} — verificar durante la revisión.
-🔍 Code review: {sin hallazgos | fixes aplicados | hallazgos para el revisor: lista — omitir la línea si no aplica}
-📖 Handbook: {ruta de la página creada/actualizada — omitir la línea si no hubo señal}
-MR: {URL del MR}
+⚠️ {advertencia del cierre — sólo si hay}
 ```
 
 ## Bitácora — formato
 
-Archivo **versionado** en la ruta que define `task-workflow.md` (p. ej. `plans/work/{parent-id}.md`; no va en `.gitignore`). El subagente la commitea junto al trabajo de cada slice (mandato punto 5); si la última actualización fue un diferido/needs-info sin commit asociado, el padre hace un commit final `docs(work): bitácora {parent-id}` para dejar el working dir limpio. No se borra al terminar — queda de auditoría local.
+Archivo **versionado** en la ruta que define `task-workflow.md` (no va en `.gitignore`). El subagente la commitea junto al trabajo de cada slice (la actualiza según el mandato); si la última actualización fue un diferido/needs-info sin commit asociado, el padre hace un commit final `docs(work): bitácora {parent-id}` para dejar el working dir limpio. No se borra al terminar — queda de auditoría y llega a la base con el MR.
 
 ```markdown
 # Work — {parent-id}: {título}
@@ -102,8 +157,8 @@ Docs: ✅ aplicado ({commit}) | — (sin [DOCS])
 Handbook: ✅ {ruta} ({commit}) | — (sin señal) — se completa al cierre (paso 8)
 Review: ✅ sin hallazgos | ✅ aplicado ({commit}) | ⚠️ {n} hallazgos anotados — se completa al cierre (paso 8)
 
-## {slice-id} — {nombre}
-Estado: ⏳ en progreso | ✅ Revisión | ⚠️ needs-info | ⏸ diferido (bloqueado por {id}) | 🙋 HITL (dejado para humano)
+## {slice-id} — {título del slice}
+Estado: ⏳ en progreso | ✅ {status in-review} | ⚠️ needs-info | ⏸ diferido (bloqueado por {id}) | 🙋 HITL (dejado para humano)
 Plan:
 - Comportamientos: {...}
 - Archivos/áreas: {...}
@@ -114,5 +169,5 @@ Resultado: {commit hash} | {motivo si needs-info}
 ## Condición de `/goal`
 
 ```
-Para cada padre objetivo: todos sus slices AFK (`ready-for-agent`, excluyendo [SPEC]/[PRD], [DOCS] y los HITL `ready-for-human`) están en `Revisión`, o marcados `needs-info` con motivo, o diferidos por bloqueo (siguen en `to do`); el [DOCS], si existe, está aplicado y en `Revisión`; la rama del padre está pusheada con un commit por slice hecho. Lo demuestro mostrando, por padre, el listado de slices con su status de ClickUp y el `git log --oneline`.
+Para cada padre objetivo: todos sus slices AFK (tag ready-for-agent) están en el status de revisión que define docs/agents/task-workflow.md — seteado por el agente principal tras verificar el commit y correr el gate en verde—, o marcados con el tag needs-info con motivo comentado en el padre, o diferidos por bloqueo (siguen en el status de backlog); el [DOCS], si existe, está aplicado y en revisión; los HITL (ready-for-human) quedan para humano y mantienen el padre en progreso; si el repo declara mandato de QA, la fase de QA corrió (veredictos en la hija [QA]) y cada [FIX] que creó está en revisión o con needs-info; la rama del padre está pusheada con un commit por slice hecho. Lo demuestro mostrando, por padre, el listado de hijas con su status del tracker y el git log --oneline.
 ```
