@@ -6,6 +6,22 @@ Fuente de verdad de mis skills de ciclo de vida de tareas para agentes (Claude C
 
 Complementan las [skills de ingeniería de Matt Pocock](https://github.com/mattpocock/skills) (`grilling`, `to-spec`, `to-tickets`, `tdd`, `code-review`, `pr`, `triage`), que son dependencia.
 
+## Inicio rápido
+
+**Qué es.** Un set de skills (prompts) para Claude Code que llevan una tarea de ClickUp desde la idea hasta el MR: `plan-task` la planifica, `work-task` la ejecuta, `setup-sandcastle` instala un worker que la drena sin humano. Se instalan en cada proyecto consumidor como copia; este repo es la fuente.
+
+**Instalar en un proyecto** (desde su raíz):
+
+```bash
+npm install -g @nick.bester/clickup-cli@1 && export CLICKUP_TOKEN=pk_...   # una vez por máquina
+npx skills add gonzaloramirezabella/skills --skill '*' -y
+npx skills add mattpocock/skills --skill '*' -y
+```
+
+Después, en Claude Code dentro del proyecto: `/setup-project` si el repo es nuevo, `/setup-skills` si ya anda. Opcional: `/setup-sandcastle` para el worker.
+
+**Actualizar cuando hay versión nueva** (acá o en mattpocock): volver a correr los dos `npx skills add` de arriba (**no** `npx skills update`, no trae skills nuevas). Si el repo tiene worker: `make sandcastle-update`. Si cambió lo que escriben los setups: re-correr `/setup-project` y `/setup-skills`, que sólo completan lo que falta. Detalle y prompt listo para pegar en *Actualizar*.
+
 ## Skills
 
 | Skill | Qué hace |
