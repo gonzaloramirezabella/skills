@@ -1,6 +1,6 @@
 ---
 name: setup-project
-description: Setup inicial de un proyecto — Docker + Makefile con análisis estático, CI que corre el gate, Docker Sandbox (sbx), AGENTS.md/CLAUDE.md con symlinks, skills (mattpocock, playwright-cli), layout de docs/ y handbook. Idempotente — en un proyecto en marcha no re-elige el stack: audita y completa lo que falte.
+description: "Setup inicial de un proyecto — Docker + Makefile con análisis estático, CI que corre el gate, Docker Sandbox (sbx), AGENTS.md/CLAUDE.md con symlinks, skills (mattpocock, playwright-cli), layout de docs/ y handbook. Idempotente — en un proyecto en marcha no re-elige el stack: audita y completa lo que falte."
 disable-model-invocation: true
 ---
 
