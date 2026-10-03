@@ -19,8 +19,7 @@ Deja un repo nuevo con el andamiaje estándar. Ejecutá los pasos en orden — c
 
 Antes de escribir infra, definí el stack entrevistando al usuario con la skill `grilling` de mattpocock (si aún no está instalada, adelantá su instalación del paso 5). La entrevista cubre, como mínimo:
 
-- Lenguaje — por defecto PHP.
-- Framework — por defecto Laravel en su última versión.
+- Lenguaje y framework — sin default: se eligen por proyecto, en su última versión estable.
 - Base de datos — ¿MySQL sí o no? Si no, ¿cuál? (una embebida, tipo SQLite, no suma servicio al compose).
 - Sentry: ¿sí o no?
 - Mailpit: ¿sí o no?
@@ -28,7 +27,7 @@ Antes de escribir infra, definí el stack entrevistando al usuario con la skill 
 - Dónde vive la app: en la raíz o bajo `src/` — obligado `src/` si el repo tiene otra identidad además de la app (docs, skills, etc.).
 - **Análisis estático** — la herramienta del stack (PHP: larastan/phpstan con nivel acordado; TS: `tsc --noEmit`; Python: mypy/pyright; Go: `go vet` + staticcheck). No es opcional: es la pata del gate que no confía en los tests, y `setup-skills` rechaza un gate sin ella. En un proyecto en marcha, si falta, se instala acá y se agrega el target.
 
-Las versiones se deciden contra el registro real (imagen oficial de Docker, packagist) — buscá las últimas estables y presentalas como opciones. Lo instalado en la máquina del usuario no pinta nada: el stack corre en Docker.
+Las versiones se deciden contra el registro real (imagen oficial de Docker, registro del package manager del stack) — buscá las últimas estables y presentalas como opciones. Lo instalado en la máquina del usuario no pinta nada: el stack corre en Docker.
 
 Cada respuesta se traduce en un servicio (o su ausencia) en el compose — nada entra al stack sin haber salido de la entrevista. Los puertos del host van parametrizados con default (`"${APP_PORT:-8080}:8000"`) para convivir con otros stacks del usuario.
 
