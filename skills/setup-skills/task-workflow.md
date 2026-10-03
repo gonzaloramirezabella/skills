@@ -6,7 +6,7 @@ Produced by the `setup-skills` skill; safe to edit by hand afterwards.
 
 ## Lifecycle statuses
 
-One state store: the issue tracker (see `issue-tracker.md`). A lifecycle status is a `status:*` label — exactly one per issue, so setting one removes the previous. Strings are exact; skills must never invent variants.
+One state store: the issue tracker (see `issue-tracker.md`). A lifecycle status is a `status:*` label — exactly one per issue, so setting one removes the previous. The `status:` prefix is a worker literal (hardcoded like the triage tags): the four lifecycle rows must start with it, and the contract test enforces it. Strings are exact; skills must never invent variants.
 
 - **Parents** flow planned → in progress → in review; their status is the team-facing signal.
 - **Slices** are child tasks of the parent (see *Plan children* below), flowing backlog → in progress → in review. **A slice's status is set by the orchestrator that verified the work — commit present, gate green — never by the agent that implemented it.** A blocked or deferred slice simply stays in backlog; one stuck on a human keeps the backlog status and gets the *blocked on a human* tag.

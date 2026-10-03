@@ -21,7 +21,7 @@ Los valores del repo — strings de los labels de status, convenciones de títul
 | Descripción | Body del issue (markdown) |
 | Comentario | Comentario del issue |
 
-Abrir/cerrar el issue no es un status del ciclo: el padre se cierra cuando el MR que lo referencia (`Closes #N`) se mergea.
+Abrir/cerrar el issue no es un status del ciclo: el PR enlaza al padre bajo `## Tarea` sin keyword de cierre, y lo cierra un humano después del merge (un PR mergeado puede dejar slices HITL pendientes).
 
 ## Setup (una vez por máquina)
 

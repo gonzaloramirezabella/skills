@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
+import { repoFromRemote, statusFromLabels, STATUS_LABEL_PREFIX } from "./github.ts";
 import {
   parseTaskWorkflow,
   parseProjectConfig,
@@ -94,6 +95,12 @@ test("parseTaskWorkflow reads the real task-workflow.md contract", () => {
 
   for (const [field, value] of Object.entries(config.statuses)) {
     assert.ok((value as string).length > 0, `status role '${field}' is empty`);
+  }
+  for (const field of ["backlog", "planned", "inProgress", "inReview"] as const) {
+    assert.ok(
+      config.statuses[field].startsWith(STATUS_LABEL_PREFIX),
+      `status role '${field}' must be a '${STATUS_LABEL_PREFIX}*' label, got '${config.statuses[field]}'`,
+    );
   }
   for (const field of [
     "baseBranch",
@@ -380,6 +387,18 @@ test("parseTaskWorkflow fails loudly instead of falling back to hardcoded values
 });
 
 // ── Pure logic ───────────────────────────────────────────────────────────────
+
+test("repoFromRemote reads owner/repo from https and ssh remotes", () => {
+  assert.equal(repoFromRemote("https://github.com/acme/app.git\n"), "acme/app");
+  assert.equal(repoFromRemote("https://github.com/acme/app"), "acme/app");
+  assert.equal(repoFromRemote("git@github.com:acme/app.git"), "acme/app");
+  assert.throws(() => repoFromRemote("https://gitlab.com/acme/app.git"), /not a GitHub repo/);
+});
+
+test("statusFromLabels picks the status label and ignores the rest", () => {
+  assert.equal(statusFromLabels(["ready-for-agent", "status:in-review", "sonnet"]), "status:in-review");
+  assert.equal(statusFromLabels(["ready-for-agent"]), "");
+});
 
 test("parseDotEnv reads KEY=VALUE, ignores comments and blanks", () => {
   const env = parseDotEnv(

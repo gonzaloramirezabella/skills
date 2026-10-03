@@ -3,7 +3,7 @@
 Everything lives in **GitHub**, in this repo:
 
 - **Issues** hold the work and its plan: **parent issues** (priorities, lifecycle status, roll-up comments) and, per planned parent, its **sub-issues** — `[SPEC]`, one sub-issue per slice (triage labels + *blocked by* dependencies), `[DOCS]` when planning settled domain docs, and `[QA]` with the manual checklist in its body. Shape and statuses in `task-workflow.md`. Planning commits nothing to the repo.
-- **Pull requests** carry the code; CI runs on them. A parent closes when its PR (`Closes #N`) merges.
+- **Pull requests** carry the code; CI runs on them. The PR body links the parent (`## Tarea`); a human closes the parent after the merge — never automatically, because a merged PR can leave HITL slices pending.
 
 ## How to access GitHub
 
@@ -90,5 +90,5 @@ Map the canonical triage roles to labels as documented in `triage-labels.md`. Li
 
 ## Pull requests
 
-- Opened with `gh pr create` against the base branch in `task-workflow.md`; the body follows the `pr` skill's shape and ends with `Closes #{parent-id}`.
+- Opened with `gh pr create` against the base branch in `task-workflow.md`; the body follows the `pr` skill's shape and ends with the parent's URL under `## Tarea` (no closing keyword: the parent is closed by a human).
 - CI runs the gate on every PR (see `task-workflow.md` § Guardrails).
