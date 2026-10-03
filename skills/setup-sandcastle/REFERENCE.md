@@ -1,6 +1,6 @@
 # REFERENCE — setup-sandcastle
 
-Plantillas de los archivos que **sí** se adaptan a cada repo. Los scripts (`lib.ts`, `worker.ts`, `tasks.ts`, `runner.ts`, `clickup.ts`, `smoke.ts`, `main.ts`, `lib.test.ts`) no están acá: se copian tal cual desde [`files/`](files/). Los `{placeholders}` se rellenan con lo relevado en el paso 2; las líneas marcadas `# adapt` son las que cambian según el proyecto.
+Plantillas de los archivos que **sí** se adaptan a cada repo. Los scripts (`lib.ts`, `worker.ts`, `tasks.ts`, `runner.ts`, `github.ts`, `smoke.ts`, `main.ts`, `lib.test.ts`) no están acá: se copian tal cual desde [`files/`](files/). Los `{placeholders}` se rellenan con lo relevado en el paso 2; las líneas marcadas `# adapt` son las que cambian según el proyecto.
 
 ## Dockerfile — stack PHP (Laravel)
 
@@ -143,9 +143,12 @@ composer-cache/        # adapt: npm-cache/ etc.
 CLAUDE_CODE_OAUTH_TOKEN=
 # Or use an Anthropic API key instead — uncomment and fill in:
 # ANTHROPIC_API_KEY=
-# Tracker API token, used by the worker for the parent's status and comments.
-# ClickUp: a personal token (pk_...) from Settings > Apps.
-CLICKUP_API_TOKEN=
+# GitHub token for the worker (issues, sub-issues, labels, comments). Optional:
+# unset, the worker uses the host's `gh auth login`. Set it for unattended runs
+# without gh (fine-grained PAT with Issues read/write on this repo).
+# GH_TOKEN=
+# Override the repo the issues live in (default: parsed from the origin remote).
+# GITHUB_REPO=owner/repo
 # Optional: per-role models (routing documented in task-workflow.md's Model routing).
 # SANDCASTLE_MODEL: default for slices and the close (claude-fable-5-1).
 # SANDCASTLE_LIGHT_MODEL: slices tagged `sonnet` (default claude-sonnet-5).
@@ -261,12 +264,14 @@ sandcastle-work sandcastle-tasks: AWAKE = 0
 endif
 
 sandcastle-work: ## Drain one or more parents' slices, one at a time (gate verified, MR + roll-up at the end) (PARENT=x[,y] [BASE=branch] [MODEL=opus|fable|sonnet] [DRY_RUN=1] [AWAKE=0]; asks for base and model when run from a terminal)
-	@[ -n "$(PARENT)" ] || { echo "PARENT task id required: make sandcastle-work PARENT=86xxxxxxx[,86yyyyyyy]"; exit 1; }
+	@[ -n "$(PARENT)" ] || { echo "PARENT task id required: make sandcastle-work PARENT=42[,57]"; exit 1; }
 	@[ -n "$(NODE_HOST)" ] || { echo "No real node found; PATH node is a Docker wrapper"; exit 1; }
 	@[ -d node_modules/@ai-hero/sandcastle ] || $(dir $(NODE_HOST))npm install
-	@# Even a dry run reads the tracker, so the env file is required in both modes;
-	@# only the agent credential and the image are exclusive to a real drain.
-	@[ -f .sandcastle/.env ] || { echo "No .sandcastle/.env — copy .sandcastle/.env.example and fill in the tracker token"; exit 1; }
+	@# Even a dry run reads the tracker, so the env file and GitHub auth are required
+	@# in both modes; only the agent credential and the image are exclusive to a real drain.
+	@[ -f .sandcastle/.env ] || { echo "No .sandcastle/.env — copy .sandcastle/.env.example"; exit 1; }
+	@grep -qE '^GH_TOKEN=..' .sandcastle/.env 2>/dev/null || gh auth status >/dev/null 2>&1 || \
+		{ echo "No GitHub auth — run 'gh auth login' or set GH_TOKEN in .sandcastle/.env"; exit 1; }
 	@if [ -z "$(DRY_RUN)" ]; then \
 		grep -qE '^(CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY)=..' .sandcastle/.env 2>/dev/null || \
 			{ echo "No credential in .sandcastle/.env — run 'claude setup-token'"; exit 1; }; \
@@ -278,10 +283,12 @@ sandcastle-work: ## Drain one or more parents' slices, one at a time (gate verif
 # Without BRANCH each task gets its own branch (prefix from the type the agent
 # declares) and MR; with BRANCH every task is one commit on it and one MR.
 sandcastle-tasks: ## Drain loose tasks outside any plan: one branch + MR each, or all on BRANCH with one MR (TASKS=x[,y] [BRANCH=name] [BASE=branch] [MODEL=opus|fable|sonnet] [DRY_RUN=1] [AWAKE=0]; asks for base and model when run from a terminal)
-	@[ -n "$(TASKS)" ] || { echo "TASKS task ids required: make sandcastle-tasks TASKS=86xxxxxxx[,86yyyyyyy] [BRANCH=fix/varios]"; exit 1; }
+	@[ -n "$(TASKS)" ] || { echo "TASKS task ids required: make sandcastle-tasks TASKS=42[,57] [BRANCH=fix/varios]"; exit 1; }
 	@[ -n "$(NODE_HOST)" ] || { echo "No real node found; PATH node is a Docker wrapper"; exit 1; }
 	@[ -d node_modules/@ai-hero/sandcastle ] || $(dir $(NODE_HOST))npm install
-	@[ -f .sandcastle/.env ] || { echo "No .sandcastle/.env — copy .sandcastle/.env.example and fill in the tracker token"; exit 1; }
+	@[ -f .sandcastle/.env ] || { echo "No .sandcastle/.env — copy .sandcastle/.env.example"; exit 1; }
+	@grep -qE '^GH_TOKEN=..' .sandcastle/.env 2>/dev/null || gh auth status >/dev/null 2>&1 || \
+		{ echo "No GitHub auth — run 'gh auth login' or set GH_TOKEN in .sandcastle/.env"; exit 1; }
 	@if [ -z "$(DRY_RUN)" ]; then \
 		grep -qE '^(CLAUDE_CODE_OAUTH_TOKEN|ANTHROPIC_API_KEY)=..' .sandcastle/.env 2>/dev/null || \
 			{ echo "No credential in .sandcastle/.env — run 'claude setup-token'"; exit 1; }; \
@@ -338,7 +345,7 @@ sandcastle-update: ## Sync the worker from the installed skill and re-run its te
 		.agents/skills/setup-sandcastle/files/worker.ts \
 		.agents/skills/setup-sandcastle/files/tasks.ts \
 		.agents/skills/setup-sandcastle/files/runner.ts \
-		.agents/skills/setup-sandcastle/files/clickup.ts \
+		.agents/skills/setup-sandcastle/files/github.ts \
 		.agents/skills/setup-sandcastle/files/main.ts \
 		.agents/skills/setup-sandcastle/files/smoke.ts \
 		.agents/skills/setup-sandcastle/files/lib.test.ts \

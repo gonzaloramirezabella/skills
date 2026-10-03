@@ -70,7 +70,7 @@ El slice **no** pasa a *in-review*. (Distinción clave: **bloqueado por dependen
 
 ## MR del cierre — comando
 
-CLI y rama target según `task-workflow.md` (*MR CLI* y *Base/integration branch*). La descripción tiene la **forma de la skill `pr`** (resumen como el visual mínimo que explica el cambio, evidencia antes/después, riesgo de merge) con los encabezados en español de España, que es el idioma de los MR del repo; el worker automatizado arma exactamente la misma forma. Invocá `pr` (Skill tool) para elegir el visual del resumen si la lista de slices no alcanza (un diff de árbol o un call tree cuando el cambio es estructural). Forma con `glab`; con otro CLI (p. ej. `gh pr create`), misma estructura:
+CLI y rama target según `task-workflow.md` (*MR CLI* y *Base/integration branch*). La descripción tiene la **forma de la skill `pr`** (resumen como el visual mínimo que explica el cambio, evidencia antes/después, riesgo de merge) con los encabezados en español de España, que es el idioma de los MR del repo; el worker automatizado arma exactamente la misma forma. Invocá `pr` (Skill tool) para elegir el visual del resumen si la lista de slices no alcanza (un diff de árbol o un call tree cuando el cambio es estructural). Forma con el *MR CLI* del repo (p. ej. `gh pr create`); con otro CLI, misma estructura:
 
 ```bash
 {MR CLI} mr create \

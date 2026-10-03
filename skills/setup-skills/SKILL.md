@@ -10,6 +10,7 @@ Scaffoldea la configuración por repo que asumen las skills de tareas (`plan-tas
 
 - **`task-workflow.md`** (nuevo) — statuses del ciclo, gate de calidad, rama base + CLI de MR, entorno, ruteo de documentación, rutas (bitácora, mandatos) y Handbook.
 - **`issue-tracker.md`** (ya existe: lo escribió `setup-matt-pocock-skills`) — se le agrega el **mapa de comandos** por operación.
+- Los **labels** del repo en GitHub: statuses (`status:*`), triage y modelo liviano — los crea con `gh label create` si faltan.
 
 Si al terminar una skill de la suite todavía nombra un tracker, un binario o un status literal, el setup quedó incompleto.
 
@@ -29,10 +30,10 @@ Los dos primeros los resolvés vos mismo (avisando qué vas a instalar); no se l
 1. **Skills de mattpocock**: esta suite delega en `grilling`, `domain-modeling`, `to-spec`, `to-tickets`, `tdd`, `code-review`, `pr` y `triage`. Si faltan en `.agents/skills/`, instalálas: `npx skills add mattpocock/skills --skill '*' -y` (o con `--skill {nombre}` una por una — la lista separada por comas está rota en el CLI). **No uses `--all`**: implica `--agent '*'` y crea directorios para todos los agentes soportados (`agent/`, etc.), no sólo los detectados.
 2. **Skills de la suite**: `plan-task`, `work-task` e `init-task` (opcionales de la familia: `qa-task`, `task-finish`, `write-handbook`, `setup-sandcastle`). Si faltan en `.agents/skills/`: preguntá al usuario la fuente — el repo fuente (`npx skills add gonzaloramirezabella/skills --skill '*' -y`) o copia manual desde otro proyecto. Tras una copia manual, verificá que sean visibles desde `.claude/skills/`: si es un symlink a `.agents/skills` no hay nada que hacer; si no, creá los hardlinks por archivo (`mkdir .claude/skills/{skill} && ln .agents/skills/{skill}/* .claude/skills/{skill}/`), igual que hace `npx skills`.
 3. **`setup-matt-pocock-skills` ya corrido**: deben existir `docs/agents/issue-tracker.md`, `triage-labels.md` y `domain.md`. Si faltan, corré esa skill primero: es user-invoked, así que la Skill tool no la carga — **leé `.agents/skills/setup-matt-pocock-skills/SKILL.md` y seguilo** acá mismo, con el usuario presente (es interactiva) — `task-workflow.md` se apoya en las tres. **Guiala hacia el flujo de esta suite**, sin dejar de confirmar cada decisión con el usuario:
-   - **Issue tracker → ClickUp** (para el setup upstream es la opción "Other" — no tiene seed de ClickUp): en lugar de escribir `issue-tracker.md` desde cero, usá [issue-tracker-clickup.md](./issue-tracker-clickup.md) de esta carpeta como seed y completá los placeholders (`{git host}`, `{MR CLI}`, convenciones del workspace).
-   - **Triage labels → tags de ClickUp**: seed [triage-labels-clickup.md](./triage-labels-clickup.md); default, cada rol mapea a un tag con su mismo nombre.
+   - **Issue tracker → GitHub Issues** del mismo repo: el upstream trae un seed de GitHub, pero sin sub-issues, labels de status ni mapa de comandos — usá [issue-tracker-github.md](./issue-tracker-github.md) de esta carpeta como seed en su lugar y completá sólo las convenciones del repo.
+   - **Triage labels → labels de GitHub**: seed [triage-labels-github.md](./triage-labels-github.md); default, cada rol mapea a un label con su mismo nombre.
    - **Domain docs**: el setup upstream asume `GLOSSARY.md` en la raíz; en los repos de esta suite el glosario vive en `docs/GLOSSARY.md` (lo fija `setup-project`), así que apuntá `domain.md` ahí y dejá dicho que no se cree un `GLOSSARY.md` en la raíz.
-4. **CLI del tracker operativo**: cualquiera sea el tracker que declare `issue-tracker.md`, su CLI tiene que estar instalado y autenticado antes de seguir — probalo con su comando de health check. Con ClickUp: `clickup-cli auth check`; si el binario falta o el token no está, resolvelo con la sección Setup de la skill [`clickup-cli`](../clickup-cli/SKILL.md) (el token va en `CLICKUP_TOKEN`, nunca leído de disco por el agente).
+4. **`gh` operativo**: `gh auth status` tiene que salir en 0 antes de seguir. Si falta el binario o el login, resolvelo con la sección Setup de la skill [`github-issues`](../github-issues/SKILL.md): la instalación la hacés vos, `gh auth login` es interactivo y lo corre el usuario (el agente nunca lee ni imprime el token).
 
 ## Proceso
 
@@ -41,10 +42,10 @@ Los dos primeros los resolvés vos mismo (avisando qué vas a instalar); no se l
 Mirá el estado real del repo; no asumas:
 
 - `docs/agents/` — ¿ya existe `task-workflow.md` (re-run)? Leé `issue-tracker.md` y `domain.md`.
-- `git remote -v` — ¿GitHub o GitLab? → propone `gh` o `glab` como CLI de MR.
+- `git remote -v` — el repo tiene que estar en GitHub (`owner/repo` del remoto `origin`); el CLI de MR es `gh`.
 - `git branch -a` — ¿existe una rama de integración (`dev`, `develop`)? Si no, la base será la default.
 - Sistema de build (`Makefile`, `composer.json`, `package.json`, etc.) — proponé comandos concretos de test / análisis estático / formato para el gate.
-- Statuses reales del tracker: descubrilos con su CLI en vez de adivinar (con ClickUp: `clickup-cli list get {LIST_ID} --output json | jq '[.[].statuses[].status]'` sobre la lista de trabajo del usuario).
+- Labels que ya existen: `gh label list --limit 100 --json name --jq '.[].name'`. Si ya hay labels `status:*`, son los statuses; si no, en la decisión A se proponen los defaults y el paso 3 los crea.
 - Cómo se levanta la app y cómo se aplican migraciones (Makefile, compose, scripts) — van a la sección *Environment*.
 - ¿Existe una skill de handbook (`write-handbook` u otra productora de docs de operación)? Si hay un directorio de handbook, abrí un par de páginas existentes para inferir el formato (frontmatter, naming, links) y proponerlo en la decisión E.
 
@@ -52,10 +53,10 @@ Mirá el estado real del repo; no asumas:
 
 Para cada sección: explicá en una línea qué es y para qué la usan las skills, mostrá lo que encontraste como propuesta, y esperá la respuesta antes de pasar a la siguiente. En texto plano, sin volcar todo junto.
 
-- **A. Statuses del ciclo** — los roles (planned para padres; backlog, in progress, in review para padres y slices) con su string exacto del workspace: **el plan entero vive en el tracker** (hijas `[SPEC]`/slices/`[DOCS]`/`[QA]` del padre), así que los statuses de slice tienen que existir ahí. *Blocked on a human* es el **tag** `needs-info`, no un status. `plan-task` deja al padre en *planned*; `work-task` mueve todo hasta *in review*.
+- **A. Statuses del ciclo** — los roles (planned para padres; backlog, in progress, in review para padres y slices) como **labels `status:*`** del repo (default: `status:backlog`, `status:planned`, `status:in-progress`, `status:in-review`; un issue lleva uno solo): **el plan entero vive en el tracker** (hijas `[SPEC]`/slices/`[DOCS]`/`[QA]` del padre), así que los statuses de slice tienen que existir ahí. *Blocked on a human* es el **tag** `needs-info`, no un status. `plan-task` deja al padre en *planned*; `work-task` mueve todo hasta *in review*.
 - **B. Gate de calidad** — los comandos que cada slice debe pasar en verde antes de *in review*: tests acotables, **análisis estático** y formato. Los corre el orquestador (`work-task` o un worker), no el agente que implementó. **La pata de análisis estático no es opcional**: un gate de tests + formato confía en tests que pueden mentir; si el repo no tiene herramienta (larastan/phpstan, `tsc`, mypy, `go vet`…), frená y resolvelo con `setup-project` paso 1 antes de escribir el bloque. Un bloque sin esa línea no cumple la criterio.
 - **B2. Guardrails** — dónde corre el gate **sin agente ni humano**: el pipeline de CI sobre cada MR es obligatorio (si no existe, `setup-project` paso 1b lo crea; anotá la ruta), el hook de pre-commit es opcional. Va a la sección `## Guardrails`. Criterio: el archivo de CI existe y corre los mismos comandos que el bloque Host.
-- **C. Rama base + MR** — de dónde salen las ramas y contra qué se abre el MR; qué CLI (`glab`/`gh`); si la base está protegida (sin push directo). La rama del padre la crea `init-task` cuando el trabajo empieza — la planificación no crea ramas ni committea nada.
+- **C. Rama base + MR** — de dónde salen las ramas y contra qué se abre el PR (`gh pr create`); si la base está protegida (sin push directo). La rama del padre la crea `init-task` cuando el trabajo empieza — la planificación no crea ramas ni committea nada.
 - **D. Ruta de la bitácora** — dónde versiona `work-task` su log de reentrada (default: `work-logs/{parent-id}.md`), el único archivo del repo adyacente al plan: es artefacto del trabajo, no del plan.
 - **D2. Entorno** — el comando que levanta la app y el que aplica migraciones.
 - **D2b. QA (opcional, recomendado)** — la sección `## QA`: carril de navegador (`yes` sólo si el sandbox va a llevar Chromium), tope de ciclos QA↔fix (default 2), credenciales con las que un agente entra a la app, y dos bloques de «levantar la app»: **Host** (lo que corre `work-task`/`qa-task` en la máquina del dev, con su URL) y **Sandbox** (nativo, dentro de la imagen del worker: migrar/semillar y servir desprendido, con su URL). Es lo que hace que la fase de QA corra sola antes del cierre y convierta cada fallo en una hija `[FIX]`. Si el repo es móvil (simulador), el carril es `no` y la sección igual vale para lo observable por consola.
@@ -71,7 +72,9 @@ Mostrá el borrador completo de `docs/agents/task-workflow.md` (usá [task-workf
 
 Copiá también los tres mandatos de la decisión D4 a la ruta acordada, y verificá que las rutas que anotaste en *Paths* apunten a los archivos que acabás de escribir. Escribí `CODING_STANDARDS.md` (decisión F) y, si `AGENTS.md` tenía reglas de estilo, movelas ahí dejando el puntero.
 
-Después agregá a `docs/agents/issue-tracker.md` la sección **`### Command map`**: una fila por operación, con el comando exacto del CLI del tracker y las mañas que un llamador tiene que saber (qué operación es destructiva, qué búsqueda no ve subtareas, qué falla con un string inválido). Las operaciones que la suite usa son: *health check*, *my user id*, *get task (fields)*, *get task (full description)*, *list subtasks*, *search by status + assignee*, *set status*, *replace description*, *create child task*, *add tag*, *mark blocked by*, *comment*, *task web URL*. Con ClickUp, el seed de esta carpeta ya la trae.
+Después verificá que `docs/agents/issue-tracker.md` tenga la sección **`## Command map`**: una fila por operación, con el comando `gh` exacto y las mañas que un llamador tiene que saber (reemplazar descripción es destructivo, set status son dos flags, sub-issues y dependencias usan el id de base de datos). Las operaciones que la suite usa son: *health check*, *my user id*, *get task (fields)*, *get task (full description)*, *list subtasks*, *search by status + assignee*, *set status*, *replace description*, *create child task*, *add tag*, *mark blocked by*, *comment*, *task web URL*. El seed de esta carpeta ya la trae.
+
+Después creá los labels que falten (`gh label list` primero; `gh label create "{name}" --color {hex} --description "..."` por cada uno ausente): los cuatro `status:*` de la decisión A, los cinco de triage de `triage-labels.md`, el tag de modelo liviano de la sección *Model routing*. Sin ellos, el primer `--add-label` del flujo falla.
 
 Después, en `.claude/settings.json` (crealo si no existe; si existe, fusioná la clave sin tocar el resto) apagá la firma de Claude en commits y MR:
 
@@ -100,4 +103,4 @@ Y en su tabla de comandos, las dos filas de la decisión G:
 
 Confirmá al usuario qué skills leen ahora esos archivos (`plan-task`, `work-task`, `init-task`, `qa-task`, `task-finish` y los subagentes que lanzan), y que `code-review` lee `CODING_STANDARDS.md`. Puede editarlos a mano después; re-correr esta skill sólo hace falta para reconfigurar desde cero.
 
-Cerrá con la verificación de portabilidad: `rg -i '{nombre del tracker}|{binario del tracker}|{status literal}' .agents/skills/{plan-task,work-task,init-task,qa-task,task-finish}` no debería devolver nada más que ejemplos explícitos.
+Cerrá con la verificación de portabilidad: `rg -i 'github|\bgh\b|status:' .agents/skills/{plan-task,work-task,init-task,qa-task,task-finish}` no debería devolver nada más que ejemplos explícitos.

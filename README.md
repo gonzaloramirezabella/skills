@@ -8,12 +8,12 @@ Complementan las [skills de ingeniería de Matt Pocock](https://github.com/mattp
 
 ## Inicio rápido
 
-**Qué es.** Un set de skills (prompts) para Claude Code que llevan una tarea de ClickUp desde la idea hasta el MR: `plan-task` la planifica, `work-task` la ejecuta, `setup-sandcastle` instala un worker que la drena sin humano. Se instalan en cada proyecto consumidor como copia; este repo es la fuente.
+**Qué es.** Un set de skills (prompts) para Claude Code que llevan un issue de GitHub desde la idea hasta el PR: `plan-task` la planifica, `work-task` la ejecuta, `setup-sandcastle` instala un worker que la drena sin humano. Se instalan en cada proyecto consumidor como copia; este repo es la fuente.
 
 **Instalar en un proyecto** (desde su raíz):
 
 ```bash
-npm install -g @nick.bester/clickup-cli@1 && export CLICKUP_TOKEN=pk_...   # una vez por máquina
+brew install gh && gh auth login   # una vez por máquina
 npx skills add gonzaloramirezabella/skills --skill '*' -y
 npx skills add mattpocock/skills --skill '*' -y
 ```
@@ -35,7 +35,7 @@ Después, en Claude Code dentro del proyecto: `/setup-project` si el repo es nue
 | `setup-project` | Setup inicial de un repo, idempotente (en marcha no re-elige el stack): Docker + Makefile con análisis estático, CI que corre el gate, targets de Docker Sandbox (`sbx`) para agentes aislados, `AGENTS.md`/`CLAUDE.md` con symlinks, layout de `docs/`, instalación de skills (mattpocock, playwright-cli), las dos páginas iniciales del handbook y revisión final del `AGENTS.md`. Correr una vez, al arrancar el repo. |
 | `write-handbook` | Crea o actualiza páginas del Handbook (docs de operación para admins/operadores). Ruta, formato e idioma salen de la sección Handbook de `task-workflow.md`; sin esa sección no corre. |
 | `setup-sandcastle` | Instala el **worker** de sandcastle (`@ai-hero/sandcastle`): `work-task` sin humano en el loop. Drena los slices AFK de uno o varios padres en un contenedor aislado con gate en dos tiers verificado desde afuera del agente (acotado por slice, completo al cierre con fix-loop), fase de QA antes del cierre (Chromium headless opcional en la imagen; una hija `[FIX]` por fallo, drenada como slice), routing de modelo por tag y por invocación (menú de rama base y modelo cuando se lanza a mano), y cierra con review + MR + informe `## Resumen` en el padre + un único comentario de cierre. También drena **tareas sueltas** fuera de un plan (`sandcastle-tasks`). Trae los scripts portables ya escritos en `files/`; se adaptan sólo la imagen y `project.json`. Correr una vez por proyecto. |
-| `clickup-cli` | Referencia de uso del binario `clickup-cli`: setup, manejo del token, mapa de comandos, errores y limitaciones. Fuente de verdad única del CLI — los `issue-tracker.md` de cada repo apuntan acá. |
+| `github-issues` | Referencia de uso de `gh` sobre GitHub Issues: mapeo del modelo (sub-issues, labels `status:*`, dependencias), setup, higiene del token, mapa de comandos, errores y limitaciones. Fuente de verdad única del CLI — los `issue-tracker.md` de cada repo salen de acá. |
 
 ## Instalación
 
@@ -51,7 +51,7 @@ Notas:
 - La lista con comas (`--skill a,b`) está rota en el CLI: usá `'*'` o una skill por vez.
 - El instalador copia cada skill a `.agents/skills/{nombre}` y la registra en `skills-lock.json` (source + hash); `.claude/skills` queda como symlink a `.agents/skills`.
 
-Después, en el proyecto, hay que correr el setup. **Obligatorio: `clickup-cli` instalado y autenticado** (`npm install -g @nick.bester/clickup-cli@1` y `CLICKUP_TOKEN` en el entorno; verificar con `clickup-cli auth check`) — sin él, el setup no puede descubrir los statuses del workspace y queda bloqueado.
+Después, en el proyecto, hay que correr el setup. **Obligatorio: `gh` instalado y autenticado** (`brew install gh && gh auth login`; verificar con `gh auth status`) — sin él, el setup no puede crear los labels ni leer los issues y queda bloqueado.
 
 - Repo nuevo: `/setup-project` — interactiva, te va pidiendo lo que necesita (stack de Docker, credenciales de playwright, configuración del repo) y se encarga de instalar el resto de las skills (mattpocock, playwright-cli) e invocar `/setup-skills`.
 - Repo ya andando: `/setup-skills` directamente — verifica dependencias, instala mattpocock/skills si falta y genera la configuración del repo (`docs/agents/task-workflow.md`).
@@ -59,8 +59,8 @@ Después, en el proyecto, hay que correr el setup. **Obligatorio: `clickup-cli` 
 
 ## Requisitos
 
-- Issue tracker **ClickUp**, accesible vía el binario [`clickup-cli`](https://clickup-cli.com) (elegido sobre MCP por consumo de tokens — ver `docs/agents/issue-tracker.md` del repo consumidor). Las skills del ciclo no lo nombran: piden operaciones por rol y leen el comando del mapa de `issue-tracker.md`.
-- Git con una rama de integración (p. ej. `dev`) y un CLI de MR (`glab` o `gh`). Si la base está protegida, mejor: el plan y el trabajo llegan sólo por MR.
+- Repo en **GitHub**: los issues del repo son el tracker (hijas del plan = sub-issues, statuses = labels `status:*`, bloqueos = dependencias nativas), operados con [`gh`](https://cli.github.com) (elegido sobre MCP por consumo de tokens — ver `docs/agents/issue-tracker.md` del repo consumidor). Las skills del ciclo no lo nombran: piden operaciones por rol y leen el comando del mapa de `issue-tracker.md`.
+- Una rama de integración (p. ej. `dev` o `main`) y `gh pr create` como CLI de MR. Si la base está protegida, mejor: el plan y el trabajo llegan sólo por PR.
 - Para sandcastle: Docker en el host y Node ≥ 22 real (no un wrapper que delega al contenedor).
 
 ## Actualizar
@@ -84,7 +84,7 @@ Cerrá el ciclo con una retro (`make sandcastle-retro`, que carga la skill `retr
 
 Eso no sincroniza el `Makefile`, `project.json` ni el `Dockerfile` — son de cada repo. Si la versión nueva trae targets o variables nuevas, el diff sale de la plantilla de `skills/setup-sandcastle/REFERENCE.md` y se aplica a mano.
 
-Queda una tercera dirección que ningún `add` cubre: las skills que **desaparecieron** del repo fuente (borradas, o renombradas) siguen instaladas para siempre, y hay que quitarlas con `npx skills remove`. Detectarlas es comparar el lock contra el repo real, source por source; el prompt de abajo lo hace.
+Queda una tercera dirección que ningún `add` cubre: las skills que **desaparecieron** del repo fuente (borradas, o renombradas) siguen instaladas para siempre, y hay que quitarlas con `npx skills remove`. Caso concreto: la antigua `clickup-cli` (el tracker ahora es GitHub Issues vía `github-issues`) — en un consumidor viejo, `npx skills remove clickup-cli -y`. Detectarlas es comparar el lock contra el repo real, source por source; el prompt de abajo lo hace.
 
 ### Prompt para actualizar un consumidor
 

@@ -65,7 +65,7 @@ Todo lo de sandcastle vive junto en `.sandcastle/`. Dos grupos, y no se mezclan.
 | `worker.ts` | El drenaje de un padre, punto a punto. El entry point del flujo. |
 | `tasks.ts` | El drenaje de tareas sueltas, fuera de un plan: una rama y un MR por tarea, o todas en una rama con un MR. Mismas garantías que `worker.ts` (commit verificado, gate corrido afuera, status puesto por él), sin spec, bitácora ni cierre. |
 | `runner.ts` | Los pasos atados al sandbox que comparten los dos drenajes: el gate, los restos sin commitear, el sleep-and-retry del rate limit, el MR y los worktrees huérfanos. |
-| `clickup.ts` | Adapter del tracker: lo único con forma de ClickUp — trae las hijas, setea statuses y tags, comenta. Otro tracker = se reescribe este archivo y nada más. |
+| `github.ts` | Adapter del tracker: lo único con forma de GitHub — sub-issues como hijas, labels `status:*` como status, dependencias nativas como bloqueos, comenta. Otro tracker = se reescribe este archivo y nada más. |
 | `smoke.ts` | Harness de depuración de la imagen: sin agente y sin credencial. |
 | `main.ts` | Escape hatch de prompt libre (`prompt.md`). No es el camino del flujo. |
 | `lib.test.ts` | Los tests, incluidos los de contrato que leen los archivos reales del repo. |
@@ -75,7 +75,7 @@ Todo lo de sandcastle vive junto en `.sandcastle/`. Dos grupos, y no se mezclan.
 - **`project.json`** — imagen, red, mounts, setup del worktree, checks de servicios y la prosa de entorno para el agente, con lo relevado en el paso 2. **Es el único archivo con valores de este repo**: los scripts lo leen y no repiten ninguno. Los valores del *workflow* no se copian acá — salen de `task-workflow.md`.
 - **`Dockerfile`** — partí de la plantilla que corresponda al stack (PHP o Node) y ajustá con los binarios del gate. Si `task-workflow.md` § *QA* declara `Browser lane: yes`, sumá el bloque *Chromium + playwright-cli* de REFERENCE.md **antes** del `USER` (los navegadores se instalan como root en una ruta global que el usuario `agent` lee). Un simulador iOS/Android **no** corre dentro de la imagen: en un repo móvil el carril de navegador es `no` y la fase de QA del sandbox verifica sólo lo observable por consola; la pantalla queda para `work-task`/`qa-task` en el host. Invariantes de cualquier variante: usuario `agent` con UID/GID parametrizados por build-arg (los archivos del worktree bind-monteado y los de la imagen comparten dueño, sin chown en runtime); Claude Code CLI vía `curl -fsSL https://claude.ai/install.sh | bash`; si la imagen base redefine `HOME` o los `XDG_*` (FrankenPHP lo hace), resetearlos al home del agente o el instalador falla; **workspace pre-trusted y hooks de git neutralizados** (el bloque de la plantilla — sin lo primero el CLI ignora el allowlist del repo y sale con error; sin lo segundo cualquier `git commit` muere porque los hooks del repo llaman a herramientas del host que acá no existen, y el trabajo del agente se pierde sin commitear); `ENTRYPOINT ["sleep", "infinity"]`.
 - **`.gitignore`** propio: `.env`, `worktrees/`, `logs/` y el directorio de cache de dependencias.
-- **`.env.example`** versionado, con las variables esperadas vacías y un comentario de cómo obtener cada una. sandcastle carga `.sandcastle/.env` solo — sin dotenv ni flags. Van dos credenciales: la de Claude y el token del tracker que usa el worker para el status y los comentarios.
+- **`.env.example`** versionado, con las variables esperadas vacías y un comentario de cómo obtener cada una. sandcastle carga `.sandcastle/.env` solo — sin dotenv ni flags. Va la credencial de Claude; el token de GitHub es opcional (`GH_TOKEN`): sin él, el worker usa el login de `gh` del host.
 - **Cache de dependencias** — un directorio (`composer-cache/`, `npm-cache/`) que el run monta dentro del sandbox y apunta vía la variable de cache del package manager, para que el primer install sea el único lento.
 
 **Criterio:** `docker build` sale verde, y `git status` no muestra nada de `.env`, `worktrees/`, `logs/` ni caches.
@@ -95,7 +95,7 @@ El repo manda: si los comandos de dev pasan por un Makefile, agregá los **ocho*
 | `sandcastle-update` | Sincroniza los ocho archivos portables desde la skill instalada y corre los tests. |
 | `sandcastle-retro` | El freno humano: corre la skill `retro` de mattpocock en el host sobre el último log del drenaje (`LOG=` para otro) y, con `MR=iid`, sobre los comentarios humanos de ese MR. Propone cambios al entorno (checks, `CODING_STANDARDS.md`, punteros, mandatos); no aplica nada sin OK. |
 
-Cada uno trae sus guardas: node real presente, credencial en `.sandcastle/.env` (sólo los que usan agente), dependencias instaladas, imagen construida (o la construye), servicios arriba si el gate los usa. El dry run no necesita credencial de agente ni imagen — no las exijas; sí necesita que `.sandcastle/.env` exista, porque el worker lee el token del tracker en los dos modos.
+Cada uno trae sus guardas: node real presente, credencial en `.sandcastle/.env` (sólo los que usan agente), dependencias instaladas, imagen construida (o la construye), servicios arriba si el gate los usa. El dry run no necesita credencial de agente ni imagen — no las exijas; sí necesita que `.sandcastle/.env` exista, porque el worker lo lee en los dos modos; y `gh auth status` en verde (o `GH_TOKEN` en ese archivo), porque el dry run lee el tracker.
 
 El menú no puede colgar una corrida desatendida: se muestra sólo si hay TTY (`[ -t 0 ]`) **y** la variable no vino por línea de comandos, y la opción por defecto **no pasa flag** — el worker resuelve la base del doc (routing de `hotfix/` incluido) y el modelo de su default. Las etiquetas del menú se derivan con `$(shell sed …)` de las mismas líneas de `task-workflow.md` que parsea el worker: en el Makefile no se escribe ningún nombre de rama.
 
@@ -107,7 +107,7 @@ El menú no puede colgar una corrida desatendida: se muestra sólo si hay TTY (`
 claude setup-token   # en el host; pegar el token en .sandcastle/.env
 ```
 
-`CLAUDE_CODE_OAUTH_TOKEN=` en `.sandcastle/.env` (o `ANTHROPIC_API_KEY=` si se prefiere API key), más el token del tracker. Ninguno se versiona, se pega en issues ni se muestra en output.
+`CLAUDE_CODE_OAUTH_TOKEN=` en `.sandcastle/.env` (o `ANTHROPIC_API_KEY=` si se prefiere API key). El tracker lo autentica el `gh` del host (`gh auth status`), u opcionalmente `GH_TOKEN=` en el mismo archivo para corridas sin `gh`. Ninguno se versiona, se pega en issues ni se muestra en output.
 
 Verificá en este orden — cada escalón aísla una clase de falla, y saltearlos hace que el primer run real falle sin decirte dónde:
 

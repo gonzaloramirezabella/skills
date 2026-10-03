@@ -6,7 +6,7 @@ Produced by the `setup-skills` skill; safe to edit by hand afterwards.
 
 ## Lifecycle statuses
 
-One state store: the issue tracker (see `issue-tracker.md`). Strings are exact; skills must never invent variants.
+One state store: the issue tracker (see `issue-tracker.md`). A lifecycle status is a `status:*` label — exactly one per issue, so setting one removes the previous. Strings are exact; skills must never invent variants.
 
 - **Parents** flow planned → in progress → in review; their status is the team-facing signal.
 - **Slices** are child tasks of the parent (see *Plan children* below), flowing backlog → in progress → in review. **A slice's status is set by the orchestrator that verified the work — commit present, gate green — never by the agent that implemented it.** A blocked or deferred slice simply stays in backlog; one stuck on a human keeps the backlog status and gets the *blocked on a human* tag.
@@ -17,11 +17,11 @@ Skills name these roles; this table is the only place the strings live. `Backlog
 
 | Role | String | Where | Notes |
 |---|---|---|---|
-| Backlog (slices) | `{backlog status, e.g. "to do"}` | tracker status | Slices wait and get deferred here |
-| Planned (parents only) | `{planned status, e.g. "planificado"}` | tracker status | |
-| In progress | `{in-progress status, e.g. "iniciado"}` | tracker status | For a slice: set when delegated |
-| In review | `{in-review status, e.g. "Revisión"}` | tracker status | Set by the verifying orchestrator |
-| Blocked on a human | `needs-info` | tracker **tag** | Slices only (they keep the backlog status); parents get a tracker comment instead |
+| Backlog (slices) | `{backlog label, e.g. status:backlog}` | status label | Slices wait and get deferred here |
+| Planned (parents only) | `{planned label, e.g. status:planned}` | status label | |
+| In progress | `{in-progress label, e.g. status:in-progress}` | status label | For a slice: set when delegated |
+| In review | `{in-review label, e.g. status:in-review}` | status label | Set by the verifying orchestrator |
+| Blocked on a human | `needs-info` | plain label (**tag**) | Slices only (they keep the backlog status); parents get a tracker comment instead |
 
 ## Plan children (tracker)
 
@@ -41,7 +41,7 @@ A slice counts as done only when its tracker status says in-review — and that 
 - The base branch is the **default**, not the only option: an orchestrator can force another one per run (the sandcastle worker takes `--base`, offered as a menu by its entry point). Work that hangs off a long-lived side branch goes there without editing this line.
 - Branch naming: `{feature|fix|chore}/{task-id}-{slug}` (lowercase, no accents, ≤60 chars). Created by `init-task` (called by `work-task`) when work starts, and recorded in the parent's description as `- Rama:`.
 - {Special targets, e.g. "Hotfix branches (`hotfix/`) target `main` instead" — delete if there are none.}
-- MR CLI: `{glab (GitLab) | gh (GitHub)}`.
+- MR CLI: `gh`.
 - New-MR web URL (fallback when the CLI is not used): `{URL template with {branch} and {target}}`
 
 ## Environment
@@ -135,7 +135,7 @@ Run by the automated worker inside its image: no Docker, no `make`. The agent ru
 
 Where the gate also runs **without any agent or human in the loop** — the deterministic brake. The CI job is mandatory: an agent that forgets the gate and a reviewer who trusts a green claim are both caught here. The hook is optional (fast, scoped to staged files).
 
-- CI: `{path to the pipeline file, e.g. .gitlab-ci.yml or .github/workflows/gate.yml}` — runs the Host gate on every MR against the base branch.
+- CI: `{path to the pipeline file, e.g. .github/workflows/gate.yml}` — runs the Host gate on every MR against the base branch.
 - Pre-commit hook: `{path, e.g. .githooks/pre-commit, wired with core.hooksPath — or "none"}`.
 - Static analysis: `{tool and config, e.g. larastan level 6 (phpstan.neon)}`.
 

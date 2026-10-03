@@ -3,7 +3,7 @@ import { spawnSync } from "node:child_process";
 import { createSandbox, claudeCode, type ClaudeCodeOptions, type Sandbox } from "@ai-hero/sandcastle";
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
 import { z } from "zod";
-import { ClickUpClient } from "./clickup.ts";
+import { createGitHubClient } from "./github.ts";
 import {
   git,
   refExists,
@@ -129,16 +129,12 @@ if (!taskMandatePath) {
 }
 const project = parseProjectConfig(readFileSync(PROJECT_DOC, "utf8"));
 const env = parseDotEnv(readFileSync(".sandcastle/.env", "utf8"));
-if (!env.CLICKUP_API_TOKEN) {
-  console.error("CLICKUP_API_TOKEN missing in .sandcastle/.env (personal token from ClickUp settings > Apps)");
-  process.exit(1);
-}
-const clickup = new ClickUpClient(env.CLICKUP_API_TOKEN);
+const tracker = createGitHubClient({ ...env, ...process.env });
 const models = resolveRunModels(flags, process.env, env);
 const effortFor = (m: string): Effort => models.effortFor(m) as Effort;
 
 const tasks: LooseTask[] = [];
-for (const id of taskIds) tasks.push(await clickup.getLooseTask(id));
+for (const id of taskIds) tasks.push(await tracker.getLooseTask(id));
 const rejected = tasks.flatMap((task) => {
   const reason = looseTaskRejection(task, config.statuses);
   return reason ? [{ id: task.id, reason }] : [];
@@ -236,9 +232,9 @@ type TaskOutcome = SliceOutcome & {
 const markNeedsInfo = async (sandbox: Sandbox, headBefore: string, task: LooseTask, reason: string, attempted: string) => {
   git("-C", sandbox.worktreePath, "reset", "--hard", headBefore);
   discardLeftovers(sandbox);
-  await clickup.setStatus(task.id, config.statuses.backlog);
-  await clickup.addTag(task.id, config.statuses.needsInfo);
-  await clickup.comment(task.id, buildTriageComment(reason, attempted));
+  await tracker.setStatus(task.id, config.statuses.backlog);
+  await tracker.addTag(task.id, config.statuses.needsInfo);
+  await tracker.comment(task.id, buildTriageComment(reason, attempted));
 };
 
 /** One task, one agent: its commit verified and the full gate green here, or
@@ -253,7 +249,7 @@ const drainTask = async (
   const taskModel = hasTag(task, MODEL_TAG_LIGHT) ? models.lightModel : models.model;
   console.log(`\n▶ ${task.id} — ${task.title}${taskModel !== models.model ? ` [${taskModel}]` : ""}`);
   const headBefore = git("-C", sandbox.worktreePath, "rev-parse", "HEAD");
-  await clickup.setStatus(task.id, config.statuses.inProgress);
+  await tracker.setStatus(task.id, config.statuses.inProgress);
 
   let usage: UsageSnapshot | undefined;
   let hitRate: number | undefined;
@@ -375,7 +371,7 @@ const drainTask = async (
     console.error(`✖ ${task.id} run failed, task back in the backlog: ${message}`);
     git("-C", sandbox.worktreePath, "reset", "--hard", headBefore);
     discardLeftovers(sandbox);
-    await clickup.setStatus(task.id, config.statuses.backlog);
+    await tracker.setStatus(task.id, config.statuses.backlog);
     if (error instanceof RateLimitExhaustedError) throw error;
     return outcome("failed", message);
   }
@@ -385,7 +381,7 @@ const drainTask = async (
  *  the description, and one functional comment. */
 const publish = async (o: TaskOutcome): Promise<void> => {
   const task = o.slice as LooseTask;
-  await clickup.updateDescription(
+  await tracker.updateDescription(
     task.id,
     upsertSection(
       task.body,
@@ -394,7 +390,7 @@ const publish = async (o: TaskOutcome): Promise<void> => {
       "start",
     ),
   );
-  await clickup.comment(task.id, o.detail);
+  await tracker.comment(task.id, o.detail);
 };
 
 const mrTitleFor = (done: TaskOutcome[]): string =>
@@ -432,7 +428,7 @@ if (sharedBranch) {
       }
       if (result.state === "done") {
         git("push", "origin", `${mirror}:refs/heads/${sharedBranch}`);
-        await clickup.setStatus(task.id, config.statuses.inReview);
+        await tracker.setStatus(task.id, config.statuses.inReview);
         console.log(`✅ ${task.id} → ${config.statuses.inReview} (gate verde)\n   ${git("log", "--oneline", "-1", mirror)}`);
         result.branch = sharedBranch;
       }
@@ -449,7 +445,7 @@ if (sharedBranch) {
           outcomes: done,
           reviewNotes: done.flatMap((o) => o.reviewNotes),
           evidenceAfter: gateEvidenceLine(gate, git("rev-parse", "--short", mirror)),
-          taskUrl: (id) => clickup.taskUrl(id),
+          taskUrl: (id) => tracker.taskUrl(id),
         }),
       });
       for (const o of done) {
@@ -496,10 +492,10 @@ if (sharedBranch) {
           outcomes: [result],
           reviewNotes: result.reviewNotes,
           evidenceAfter: gateEvidenceLine(gate, git("rev-parse", "--short", mirror)),
-          taskUrl: (id) => clickup.taskUrl(id),
+          taskUrl: (id) => tracker.taskUrl(id),
         }),
       });
-      await clickup.setStatus(task.id, config.statuses.inReview);
+      await tracker.setStatus(task.id, config.statuses.inReview);
       console.log(`✅ ${task.id} → ${config.statuses.inReview} (gate verde)\n   ${git("log", "--oneline", "-1", mirror)}`);
       await publish(result);
     }

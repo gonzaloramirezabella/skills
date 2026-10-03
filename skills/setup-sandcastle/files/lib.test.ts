@@ -383,10 +383,10 @@ test("parseTaskWorkflow fails loudly instead of falling back to hardcoded values
 
 test("parseDotEnv reads KEY=VALUE, ignores comments and blanks", () => {
   const env = parseDotEnv(
-    "# comment\nCLAUDE_CODE_OAUTH_TOKEN=abc\n\nCLICKUP_API_TOKEN=pk_123\nQUOTED=\"x y\"\n",
+    "# comment\nCLAUDE_CODE_OAUTH_TOKEN=abc\n\nGH_TOKEN=ghp_123\nQUOTED=\"x y\"\n",
   );
   assert.equal(env.CLAUDE_CODE_OAUTH_TOKEN, "abc");
-  assert.equal(env.CLICKUP_API_TOKEN, "pk_123");
+  assert.equal(env.GH_TOKEN, "ghp_123");
   assert.equal(env.QUOTED, "x y");
   assert.equal(env["# comment"], undefined);
 });
@@ -567,7 +567,7 @@ test("buildMrDescription takes the pr shape: summary, evidence, merge danger, ta
     handbookLine: "src/resources/handbook/citas.md",
     evidence: { before: "las citas no se sincronizaban", after: gateEvidenceLine(["php artisan test"], "abc123") },
     mergeDanger: { door: "de dos vías", door_note: "se revierte con un revert", blast_radius: "acotado", blast_note: null },
-    taskUrl: "https://app.clickup.com/t/86cxxx",
+    taskUrl: "https://github.com/acme/app/issues/42",
   });
 
   assert.ok(description.startsWith("## Resumen\n- Slice t01: sincroniza citas\n📖 Handbook: src/resources/handbook/citas.md"));
@@ -577,13 +577,13 @@ test("buildMrDescription takes the pr shape: summary, evidence, merge danger, ta
   assert.ok(description.includes("🔍 Code review: fixes aplicados (abc123)"));
   assert.ok(description.includes("- Slice t01: naming ambiguo en el mapper"));
   assert.ok(!description.includes("## Revisión"));
-  assert.ok(description.endsWith("## Tarea\nhttps://app.clickup.com/t/86cxxx"));
+  assert.ok(description.endsWith("## Tarea\nhttps://github.com/acme/app/issues/42"));
 });
 
 test("buildMrDescription degrades when the close mandate gave no merge-danger call", () => {
   const description = buildMrDescription({
     outcomes: [{ slice: child({ id: "t01" }), state: "done", detail: "sincroniza citas" }],
-    taskUrl: "https://app.clickup.com/t/86cxxx",
+    taskUrl: "https://github.com/acme/app/issues/42",
   });
   assert.ok(description.includes("## Riesgo de merge\n**Puerta:** sin evaluar\n\n**Radio de impacto:** sin evaluar"));
   assert.ok(!description.includes("## Evidencia"));

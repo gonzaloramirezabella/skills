@@ -93,11 +93,11 @@ npx skills add mattpocock/skills --skill '*' -y
 
 Nunca `--all` (crea directorios basura para todos los agentes); la lista con comas está rota — `'*'` o una por una.
 
-Antes de correr `/setup-skills`, garantizá el acceso al tracker — **`clickup-cli` autenticado es obligatorio** para descubrir los statuses reales. Verificá con `clickup-cli auth check` y resolvé lo que falte con la sección Setup de la skill [`clickup-cli`](../clickup-cli/SKILL.md) (instalación por máquina, no del repo; el token se le pide al usuario).
+Antes de correr `/setup-skills`, garantizá el acceso al tracker — **`gh` autenticado es obligatorio** (los issues del repo son el tracker y el setup crea los labels). Verificá con `gh auth status` y resolvé lo que falte con la sección Setup de la skill [`github-issues`](../github-issues/SKILL.md) (instalación por máquina; `gh auth login` lo corre el usuario).
 
 Después correr `/setup-skills` (interactiva, con el usuario presente): verifica dependencias, corre `setup-matt-pocock-skills` si falta y genera `docs/agents/task-workflow.md` — incluida la sección **Handbook**, que el paso 7 necesita.
 
-**Criterio:** `clickup-cli auth check` sale en 0, `skills-lock.json` registra `mattpocock/skills` y existe `docs/agents/task-workflow.md` con sección Handbook.
+**Criterio:** `gh auth status` sale en 0, `skills-lock.json` registra `mattpocock/skills` y existe `docs/agents/task-workflow.md` con sección Handbook.
 
 ## 6. playwright-cli
 

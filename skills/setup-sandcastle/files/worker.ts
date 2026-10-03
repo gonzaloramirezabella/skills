@@ -6,7 +6,7 @@ import { createSandbox, claudeCode, type ClaudeCodeOptions, type Sandbox } from 
 type Effort = ClaudeCodeOptions["effort"];
 import { docker } from "@ai-hero/sandcastle/sandboxes/docker";
 import { z } from "zod";
-import { ClickUpClient } from "./clickup.ts";
+import { createGitHubClient } from "./github.ts";
 import {
   git,
   refExists,
@@ -178,11 +178,7 @@ const parentId = parentIds[0];
 const config = parseTaskWorkflow(readFileSync(WORKFLOW_DOC, "utf8"));
 const project = parseProjectConfig(readFileSync(PROJECT_DOC, "utf8"));
 const env = parseDotEnv(readFileSync(".sandcastle/.env", "utf8"));
-if (!env.CLICKUP_API_TOKEN) {
-  console.error("CLICKUP_API_TOKEN missing in .sandcastle/.env (personal token from ClickUp settings > Apps)");
-  process.exit(1);
-}
-const clickup = new ClickUpClient(env.CLICKUP_API_TOKEN);
+const tracker = createGitHubClient({ ...env, ...process.env });
 // Model routing (task-workflow.md "Model routing"): the default model drains the
 // slices and the close; a `sonnet`-tagged slice runs on the light model instead.
 const models = resolveRunModels(flags, process.env, env);
@@ -191,12 +187,12 @@ const effortFor = (m: string): Effort => models.effortFor(m) as Effort;
 
 const sandboxSetup = project.setup.join(" && ");
 
-const parent = await clickup.getTask(parentId);
-console.log(`Parent ${parentId}: ${parent.name} [${parent.status.status}]`);
+const parent = await tracker.getTask(parentId);
+console.log(`Parent ${parentId}: ${parent.title} [${parent.status}]`);
 
-const parentDescription = parent.markdown_description ?? parent.text_content ?? parent.description ?? "";
+const parentDescription = parent.body;
 const branchFromDescription = extractBranchFromDescription(parentDescription);
-const branch = branchFromDescription ?? branchNameFor(parentId, parent.name);
+const branch = branchFromDescription ?? branchNameFor(parentId, parent.title);
 const baseBranch = baseBranchFor(branch, config, flags.base);
 const gateVars = { BASE_BRANCH: baseBranch };
 const sliceGate = resolveGateCommands(config.gate.sandboxSlice, gateVars);
@@ -232,7 +228,7 @@ if (!baseRef) {
   process.exit(1);
 }
 
-const children = await clickup.getChildren(parentId);
+const children = await tracker.getChildren(parentId);
 const plan = classifyChildren(children);
 if (plan.slices.length === 0) {
   console.error(`Parent ${parentId} has no slice children — run plan-task first.`);
@@ -271,7 +267,7 @@ if (workItems.length === 0 && classified.done.length === 0) {
   console.log("Nothing to do.");
   process.exit(0);
 }
-if (workItems.length === 0 && statusIs(parent.status.status, config.statuses.inReview)) {
+if (workItems.length === 0 && statusIs(parent.status, config.statuses.inReview)) {
   console.log(`Nothing to do: queue empty and the parent is already ${config.statuses.inReview}.`);
   process.exit(0);
 }
@@ -283,9 +279,9 @@ if (heldMirror) {
 }
 git("branch", "--force", workBranch, baseRef);
 
-if (statusIs(parent.status.status, config.statuses.planned)) {
-  await clickup.setStatus(parentId, config.statuses.inProgress);
-  await clickup.comment(parentId, `Rama de trabajo: \`${branch}\` (sandcastle worker)`);
+if (statusIs(parent.status, config.statuses.planned)) {
+  await tracker.setStatus(parentId, config.statuses.inProgress);
+  await tracker.comment(parentId, `Rama de trabajo: \`${branch}\` (sandcastle worker)`);
 }
 
 const setupStarted = Date.now();
@@ -317,12 +313,12 @@ writeFileSync(
 
 /** Deterministic block path: the worker owns the tracker state, the log keeps the trace. */
 const markNeedsInfo = async (slice: ChildTask, reason: string): Promise<void> => {
-  await clickup.setStatus(slice.id, config.statuses.backlog);
-  await clickup.addTag(slice.id, config.statuses.needsInfo);
+  await tracker.setStatus(slice.id, config.statuses.backlog);
+  await tracker.addTag(slice.id, config.statuses.needsInfo);
   const log = join(sandbox.worktreePath, workLogPath);
   if (!existsSync(log)) {
     mkdirSync(dirname(log), { recursive: true });
-    writeFileSync(log, `# Work — ${parentId}: ${parent.name}\nRama: ${branch}\n`);
+    writeFileSync(log, `# Work — ${parentId}: ${parent.title}\nRama: ${branch}\n`);
   }
   appendFileSync(
     log,
@@ -340,7 +336,7 @@ const markNeedsInfo = async (slice: ChildTask, reason: string): Promise<void> =>
 };
 
 const reportNeedsInfo = async (slice: ChildTask, reason: string, attempted: string): Promise<void> => {
-  await clickup.comment(
+  await tracker.comment(
     parentId,
     `⚠️ Slice ${slice.id} (${slice.title}) → needs-info\n\n${buildTriageComment(reason, attempted)}`,
   );
@@ -386,7 +382,7 @@ const drainSlice = async (slice: ChildTask, queue: ChildTask[]): Promise<"done" 
 
     const sliceModel = hasTag(slice, MODEL_TAG_LIGHT) ? lightModel : model;
     console.log(`\n▶ ${slice.id} — ${slice.title}${sliceModel !== model ? ` [${sliceModel}]` : ""}`);
-    await clickup.setStatus(slice.id, config.statuses.inProgress);
+    await tracker.setStatus(slice.id, config.statuses.inProgress);
 
     let usage: UsageSnapshot | undefined;
     let hitRate: number | undefined;
@@ -478,7 +474,7 @@ const drainSlice = async (slice: ChildTask, queue: ChildTask[]): Promise<"done" 
 
       // Commit verified and gate green: only now does the slice get its status.
       pushParent();
-      await clickup.setStatus(slice.id, config.statuses.inReview);
+      await tracker.setStatus(slice.id, config.statuses.inReview);
       const head = git("log", "--oneline", "-1", workBranch);
       console.log(`✅ ${slice.id} → ${config.statuses.inReview} (gate verde)\n   ${head}`);
       completedInRun.add(slice.id);
@@ -487,7 +483,7 @@ const drainSlice = async (slice: ChildTask, queue: ChildTask[]): Promise<"done" 
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(`✖ ${slice.id} run failed, slice stays queued: ${message}`);
-      await clickup.setStatus(slice.id, config.statuses.backlog);
+      await tracker.setStatus(slice.id, config.statuses.backlog);
       outcomes.push({ slice, state: "failed", detail: message, usage, cacheHitRate: hitRate, agentMs, gateMs });
       if (error instanceof RateLimitExhaustedError) {
         // Every further run would die on the same limit: stop the drain and
@@ -533,7 +529,7 @@ try {
   if (qaWouldRun && config.qa) {
     const qaChild = plan.qa;
     const qaConfig = config.qa;
-    let qaDescription = (await clickup.getTask(qaChild.id)).markdown_description ?? qaChild.body;
+    let qaDescription = (await tracker.getTask(qaChild.id)).body || qaChild.body;
     let unresolvedFixes: ChildTask[] = [];
     const fixByIndex = new Map<number, ChildTask>();
     let lastTotals = { pass: 0, fail: 0, human: 0 };
@@ -554,7 +550,7 @@ try {
             promptFile: config.qaMandatePath!,
             promptArgs: {
               PARENT_ID: parentId,
-              PARENT_TITLE: parent.name,
+              PARENT_TITLE: parent.title,
               QA_ID: qaChild.id,
               QA_CHECKLIST: renderChecklistForAgent(items),
               SPEC_FILE: specFile,
@@ -596,7 +592,7 @@ try {
         for (const result of fails) {
           const item = items.find((i) => i.index === result.index)!;
           const fix = buildFixChild(item, result, qaChild.id);
-          const created = await clickup.createChildTask(parentId, {
+          const created = await tracker.createChildTask(parentId, {
             title: fix.title,
             body: fix.body,
             status: config.statuses.backlog,
@@ -607,8 +603,8 @@ try {
         }
       }
       qaDescription = applyQaVerdicts(qaDescription, results);
-      await clickup.updateDescription(qaChild.id, qaDescription);
-      await clickup.comment(
+      await tracker.updateDescription(qaChild.id, qaDescription);
+      await tracker.comment(
         qaChild.id,
         buildQaComment({ cycle, items, results, fixes: fixes.map((f) => ({ id: f.id, title: f.title })) }),
       );
@@ -658,7 +654,7 @@ try {
       // The fixed items keep their ❌ line, so the next cycle re-verifies them.
     }
     reviewNotes.push(
-      `QA: ✅ ${lastTotals.pass} · ❌ ${lastTotals.fail} · 🙋 ${lastTotals.human} — veredictos en la hija [QA] ${clickup.taskUrl(qaChild.id)}`,
+      `QA: ✅ ${lastTotals.pass} · ❌ ${lastTotals.fail} · 🙋 ${lastTotals.human} — veredictos en la hija [QA] ${tracker.taskUrl(qaChild.id)}`,
     );
   } else if (qaWouldRun && !config.qa) {
     console.warn("⚠️ QA mandate declared but task-workflow.md has no '## QA' section — QA phase skipped");
@@ -697,7 +693,7 @@ try {
           promptFile: config.closeMandatePath,
           promptArgs: {
             PARENT_ID: parentId,
-            PARENT_TITLE: parent.name,
+            PARENT_TITLE: parent.title,
             SPEC_FILE: specFile,
             WORK_LOG: workLogPath,
             BRANCH: branch,
@@ -780,7 +776,7 @@ try {
     mrUrl = openMergeRequest(config.mrCli, {
       branch,
       baseBranch,
-      title: `${commitTypeFor(branch)}: ${parent.name}`,
+      title: `${commitTypeFor(branch)}: ${parent.title}`,
       description: buildMrDescription({
         outcomes,
         reviewLine,
@@ -791,7 +787,7 @@ try {
           after: gateEvidenceLine(closeGate, git("rev-parse", "--short", workBranch), closeGateVerdict),
         },
         mergeDanger,
-        taskUrl: clickup.taskUrl(parentId),
+        taskUrl: tracker.taskUrl(parentId),
       }),
     });
     mrSkippedReason = mrUrl ? undefined : "falló la creación y no hay MR previo";
@@ -805,7 +801,7 @@ try {
       const retroFile = `.sandcastle/logs/retro-${parentId}.md`;
       writeFileSync(
         join(sandbox.worktreePath, retroFile),
-        buildRetroPrompt({ parentId, parentTitle: parent.name, branch, baseBranch, workLog: workLogPath, events, reviewNotes }),
+        buildRetroPrompt({ parentId, parentTitle: parent.title, branch, baseBranch, workLog: workLogPath, events, reviewNotes }),
       );
       try {
         const retroRun = await limits.run(() =>
@@ -837,7 +833,7 @@ try {
     // block already lives; the close comment is a single functional paragraph.
     if (closeReport) {
       try {
-        await clickup.updateDescription(
+        await tracker.updateDescription(
           parentId,
           upsertSection(
             parentDescription,
@@ -850,7 +846,7 @@ try {
         const message = error instanceof Error ? error.message : String(error);
         console.error(`✖ could not publish the close report on the parent: ${message}`);
         // The report must not be lost: fall back to a plain comment.
-        await clickup.comment(
+        await tracker.comment(
           parentId,
           `📋 Resumen (no se pudo actualizar la descripción)\n\n${buildResumenSection({ report: closeReport, branch, mrUrl, pending: decision.pending })}`,
         );
@@ -860,9 +856,9 @@ try {
   }
 
   if (decision.setInReview) {
-    await clickup.setStatus(parentId, config.statuses.inReview);
+    await tracker.setStatus(parentId, config.statuses.inReview);
   }
-  await clickup.comment(
+  await tracker.comment(
     parentId,
     buildRollupComment({
       comment: closeComment,
@@ -874,7 +870,7 @@ try {
   console.log("\n── Resumen ──");
   for (const line of buildFinalSummary({
     parentId,
-    parentTitle: parent.name,
+    parentTitle: parent.title,
     branch,
     baseBranch: baseBranch,
     outcomes,
