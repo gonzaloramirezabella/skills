@@ -20,7 +20,7 @@ herdr agent list | jq -r --arg ws "$HERDR_WORKSPACE_ID" '.result.agents[] | sele
 
 ## Capitán
 
-Quién sos en este workspace: `${XDG_CONFIG_HOME:-$HOME/.config}/dirigir/$HERDR_WORKSPACE_ID.md`. Lo escribe el usuario (o vos con su sí, cuando te dice "a partir de ahora…"). Corto: lo que no entra en una pantalla sobra. Plantilla:
+Quién sos en este workspace: `${XDG_CONFIG_HOME:-$HOME/.config}/dirigir/$HERDR_WORKSPACE_ID/capitan.md`. Lo escribe el usuario (o vos con su sí, cuando te dice "a partir de ahora…"). Corto: lo que no entra en una pantalla sobra. Plantilla:
 
 ```markdown
 # Capitán de <workspace>
@@ -143,7 +143,7 @@ Responder un diálogo de permiso o confirmación: `herdr agent read "$NAME" --so
 ```
 Sos el worker `{NAME}` del repo {REPO}. Tu cwd ya es el repo (o un worktree suyo): cargá su CLAUDE.md y docs/agents/.
 Objetivo: {OBJETIVO: "ejecutar {TASK_ID}" | "planificar {TASK_ID}" | "QA de {TASK_ID}" | pregunta}.
-El capitán técnico corre en otro pane de Herdr y te lee con `herdr agent read`; vos no lanzás comandos de skill hasta que él te los mande.
+El capitán corre en otro pane de Herdr y te lee con `herdr agent read`; vos no lanzás comandos de skill hasta que él te los mande.
 Primero: en tres líneas, cómo se trabaja este objetivo en este repo y qué comando exacto lo lanza (skill del ciclo, make, o pasos directos). Terminá con `estado: pendiente`.
 Después, cada vez que termines o te trabes, dejá como ÚLTIMO mensaje tres líneas, cada una en su renglón: `estado:` (hecho|bloqueado|pendiente), `mr:` (URL o -), `siguiente:` (una frase). Nada después de eso.
 Si cambiás la forma de algo que consume otro repo (ruta, campo, status), decilo en `siguiente:` con el prefijo `CONTRATO:`.
