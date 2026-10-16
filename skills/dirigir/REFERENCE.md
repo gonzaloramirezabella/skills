@@ -43,7 +43,7 @@ LIST=$(clickup-cli task get "$OTRO_TICKET_DEL_FOCO" --output json | jq -r '.[0].
 ID=$(clickup-cli task create --list "$LIST" --name "$TITULO" --description @- --output json <<<"$RESUMEN_EN_TRES_LINEAS" | jq -r '.[0].id // .id')
 ```
 
-La lista sale de otro ticket del mismo repo (del foco o del último cerrado en la bitácora); sin ninguno, pedísela al usuario (`clickup-cli list list --folder <id>`). Después: foco (activo), worker agente en `$REPO` con Fable 5.1, mandato de planificar, y `/plan-task $ID` como texto. Al `estado: hecho`, `clickup-cli task get "$ID" --subtasks` y reportás `n` hijas (`[SPEC]`, slices, `[QA]`) y si hay slices AFK, ofrecés el drenaje.
+La lista sale de otro ticket del mismo repo (del foco o del último cerrado en la bitácora); sin ninguno, o si esa lista es un sprint ya pasado (`.list.name`), pedísela al usuario (`clickup-cli list list --folder <id>`). Después: foco (activo), worker agente en `$REPO` con Fable 5.1, mandato de planificar, y `/plan-task $ID` como texto. Al `estado: hecho`, `clickup-cli task get "$ID" --subtasks` y reportás `n` hijas (`[SPEC]`, slices, `[QA]`) y si hay slices AFK, ofrecés el drenaje.
 
 ## Retro
 
