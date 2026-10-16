@@ -96,6 +96,8 @@ herdr pane get "$pane" | jq -r '.result.pane.tokens | "estado=\(.estado // "-") 
 
 `estado` y `siguiente` se borran al enviar un prompt nuevo y reaparecen cuando el worker para. Si tras `agent wait` no hay `estado`, el worker no cerró con las tres líneas: `herdr agent read "$NAME" --source recent-unwrapped --lines 20` y pedíselas.
 
+Antes de cada `agent prompt` a un worker **idle o done**, `herdr pane send-keys "$PANE" esc`: limpia un modal o un menú que quedó abierto y que haría rebotar el prompt. Nunca a un worker `working`: esc lo interrumpe.
+
 Responder un diálogo de permiso o confirmación: `herdr agent read "$NAME" --source visible --lines 12`, y `herdr agent send-keys "$NAME" enter` (opción resaltada) o `down enter` para la siguiente. Texto libre: otro `agent prompt`.
 
 ## Mandato de arranque
@@ -162,8 +164,8 @@ Umbral: **100k** en el token `ctx` (`"134k"`). La nota del `/compact` va **corta
 - {pane} ({nombre}) {cwd}
 
 ## Workers
-| name | tipo | tab | pane | cwd | ticket | estado | mr | último siguiente |
-|---|---|---|---|---|---|---|---|---|
+| name | tipo | tab | pane | cwd | ticket | inicio | estado | mr | ctx | último siguiente |
+|---|---|---|---|---|---|---|---|---|---|---|
 
 ## Decisiones
 - {hora} {qué y por qué}
