@@ -28,7 +28,7 @@ Dos nombres por worker:
 ## Lanzar un drenaje (sandcastle)
 
 ```bash
-out=$(herdr tab create --workspace "$HERDR_WORKSPACE_ID" --cwd "$REPO" --label "$NAME" --no-focus)
+out=$(herdr tab create --workspace "$HERDR_WORKSPACE_ID" --cwd "$REPO" --label "$LABEL" --no-focus)
 tab=$(echo "$out" | jq -r '.result.tab.tab_id')
 pane=$(echo "$out" | jq -r '.result.root_pane.pane_id')
 sleep 2
@@ -50,10 +50,10 @@ CWD="$REPO/.claude/worktrees/$SLUG"
 
 `drain` es el `state.json` que deja el worker (`phase` draining/qa/closing/done/stopped/failed, `slices` done/total, `gate`, `qa` pass/fail/human, `mr`): dice en qué va un drenaje sin leer su log.
 
-QA o sólo preguntas: `CWD="$REPO"` (checkout principal). Si el repo declara stack por slot (`make slot N=` en `task-workflow.md` § Host), QA puede correr en el worktree de la tarea: tecla `u` en su fila del tablero (o `make slot N=<libre> && make up` ahí) y `l` abre la app en su puerto; el slot nace con la base vacía, así que antes `make install` o un dump. Después, igual para todos:
+QA o sólo preguntas: `CWD="$REPO"` (checkout principal). Si el repo declara stack por slot (`make slot N=` en `task-workflow.md` § Host), QA puede correr en el worktree de la tarea: `make slot N=<libre> && make up` ahí (el tablero muestra el slot y el puerto en STACK, y la `App URL (host)` de `task-workflow.md` con ese puerto es la app); el slot nace con la base vacía, así que antes `make install` o un dump. Después, igual para todos:
 
 ```bash
-out=$(herdr tab create --workspace "$HERDR_WORKSPACE_ID" --cwd "$CWD" --label "$NAME" --no-focus)
+out=$(herdr tab create --workspace "$HERDR_WORKSPACE_ID" --cwd "$CWD" --label "$LABEL" --no-focus)
 tab=$(echo "$out" | jq -r '.result.tab.tab_id')
 pane=$(echo "$out" | jq -r '.result.root_pane.pane_id')
 sleep 2
