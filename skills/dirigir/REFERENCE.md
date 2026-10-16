@@ -7,7 +7,7 @@ Recetas que la skill consulta a demanda. Lo específico de cada workspace (qué 
 `herdr-panel` es el binario del plugin `bcnquark.panel` (en `~/.local/bin` tras el setup). Devuelve el estado del workspace en JSON: repos, worktrees, agentes unidos por cwd, MRs y tokens.
 
 ```bash
-herdr-panel snapshot --no-report | jq -c '.Rows[] | {repo: .RepoName, path: .Path, branch: .Branch, task: .TaskID, main: .Main, mr: .MR.web_url, agents: [.Agents[]? | {pane: .pane_id, name, status: .agent_status, tokens}]}'
+herdr-panel snapshot --no-report | jq -c '.Rows[] | {repo: .RepoName, path: .Path, branch: .Branch, task: .TaskID, main: .Main, mr: .MR.web_url, stack: .Stack, agents: [.Agents[]? | {pane: .pane_id, name, status: .agent_status, tokens}]}'
 ```
 
 Repos "con ciclo" = los que tienen `docs/agents/task-workflow.md`: `test -f "$REPO/docs/agents/task-workflow.md"`. El tablero visual es el tab `Tablero` del mismo workspace (`herdr plugin pane open --plugin bcnquark.panel --entrypoint board`); el usuario lo mira, vos usás el JSON.
@@ -45,7 +45,7 @@ herdr worktree create --cwd "$REPO" --branch "$BRANCH" --base "origin/$BASE" --p
 CWD="$REPO/.claude/worktrees/$SLUG"
 ```
 
-QA o sólo preguntas: `CWD="$REPO"` (checkout principal). Después, igual para todos:
+QA o sólo preguntas: `CWD="$REPO"` (checkout principal). Si el repo declara stack por slot (`make slot N=` en `task-workflow.md` § Host), QA puede correr en el worktree de la tarea: tecla `u` en su fila del tablero (o `make slot N=<libre> && make up` ahí) y `l` abre la app en su puerto; el slot nace con la base vacía, así que antes `make install` o un dump. Después, igual para todos:
 
 ```bash
 out=$(herdr tab create --workspace "$HERDR_WORKSPACE_ID" --cwd "$CWD" --label "$NAME" --no-focus)
