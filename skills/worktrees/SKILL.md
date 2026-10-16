@@ -27,7 +27,7 @@ Anotá tres cosas: el **main checkout** (primera línea), si está en la rama ba
 1. Resolvé la rama: si viene un task-id, el nombre lo da la convención del repo (`{feature|fix|chore}/{task-id}-{slug}`, misma regla que `init-task`); si la rama ya existe local o en `origin`, se usa tal cual.
 2. Path canónico: `<repo>/.claude/worktrees/<slug>`, con `<slug>` = la rama con `/` → `-`. Razón en REFERENCE § Convención.
 3. Si la rama ya está checkouteada en otro worktree, **ese** es el worktree de la tarea: entrá ahí, no fuerces un segundo.
-4. Creá con la receta de REFERENCE (git o `herdr worktree create` si estás en Herdr y querés tab propio). Rama nueva: desde la rama base actualizada (`git fetch origin` primero). Rama existente en remoto: `git worktree add <path> <branch>` con tracking.
+4. Creá con la receta de REFERENCE (git; `herdr worktree create` sólo si querés un **workspace** nuevo para ese worktree: siempre abre uno, aun con `--workspace`). Rama nueva: desde la rama base actualizada (`git fetch origin` primero). Rama existente en remoto: `git worktree add <path> <branch>` con tracking.
 5. Copiá lo gitignorado que el stack necesita (`.env` y similares): `.worktreeinclude` lo hace automático sólo para worktrees que crea Claude Code; a mano, copialo vos (lista en REFERENCE § Archivos locales).
 
 *Criterio:* `git -C <path> status -sb` muestra la rama esperada, limpia, con upstream si la rama existe en remoto.
@@ -65,7 +65,7 @@ Bajar: `docker compose -p <slug> down` (con `-v` sólo si el worktree se va a bo
 Tres formas, elegí por contexto:
 
 - **Vos en Claude Code**: `claude -w <nombre>` desde el main checkout abre (o crea) `.claude/worktrees/<nombre>`; con una MR: `claude -w 'https://gitlab.com/.../merge_requests/123'`. Dentro de una sesión: `EnterWorktree` con `path` apunta a uno existente. Salir con `ExitWorktree` `keep`, nunca `remove` con trabajo.
-- **Agente en Herdr** (`HERDR_ENV=1`): `herdr worktree open --path <path> --no-focus` abre un tab con cwd ahí; después `herdr agent start` en su pane (sintaxis en la skill `herdr`).
+- **Agente en Herdr** (`HERDR_ENV=1`): `herdr tab create --workspace "$HERDR_WORKSPACE_ID" --cwd <path> --label <texto> --no-focus` abre un tab con cwd ahí en el workspace actual (`herdr worktree open` abriría otro workspace); después `herdr agent start` en su pane (sintaxis en la skill `herdr`).
 - **Subagente aislado**: `isolation: "worktree"` del Agent tool crea uno temporal bajo `.claude/worktrees/` desde la rama base, salvo `worktree.baseRef: "head"`.
 
 *Criterio:* `pwd`/`cwd` del agente es el path del worktree y `git branch --show-current` da la rama esperada.

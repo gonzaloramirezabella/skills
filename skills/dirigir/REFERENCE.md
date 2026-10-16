@@ -60,9 +60,12 @@ herdr pane read "$pane" --source recent-unwrapped --lines 30
 Planificar o codificar: primero el worktree de la tarea (skill `worktrees`; `BRANCH` según la convención del repo, p. ej. `feature/<id>-<slug>`; `SLUG` = la rama con `/` → `-`):
 
 ```bash
-herdr worktree create --cwd "$REPO" --branch "$BRANCH" --base "origin/$BASE" --path "$REPO/.claude/worktrees/$SLUG" --label "$SLUG" --no-focus
 CWD="$REPO/.claude/worktrees/$SLUG"
+git -C "$REPO" fetch -q origin "$BASE"
+git -C "$REPO" worktree add -b "$BRANCH" "$CWD" "origin/$BASE" 2>/dev/null || git -C "$REPO" worktree add "$CWD" "$BRANCH"
 ```
+
+Con `git`, no con `herdr worktree create`/`open`: esos abren **un workspace nuevo** por worktree (aun con `--workspace`), y el worker tiene que vivir en este. El tab lo abre `herdr tab create` abajo.
 
 `drain` es el `state.json` que deja el worker (`phase` draining/qa/closing/done/stopped/failed, `slices` done/total, `gate`, `qa` pass/fail/human, `mr`): dice en qué va un drenaje sin leer su log.
 
