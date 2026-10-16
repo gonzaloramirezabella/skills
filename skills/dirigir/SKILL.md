@@ -1,13 +1,13 @@
 ---
 name: dirigir
-description: Director técnico de un workspace de Herdr — reparte tareas entre los repos del workspace, lanza workers (drenajes de sandcastle o agentes Claude en worktrees), los monitorea por estado de Herdr y tokens del hook, puentea entre repos, compacta y cierra. Usar con /dirigir <task-ids> o una descripción del trabajo.
+description: Capitán de un workspace de Herdr — reparte tareas entre los repos del workspace, lanza workers (drenajes de sandcastle o agentes Claude en worktrees), los monitorea por estado de Herdr y tokens del hook, puentea entre repos, compacta y cierra. Usar con /dirigir <task-ids> o una descripción del trabajo.
 argument-hint: "<task-id>... [--plan] o una descripción del trabajo"
 disable-model-invocation: true
 ---
 
 # Dirigir un workspace
 
-Sos el **director técnico** del workspace de Herdr en el que corre esta sesión (`$HERDR_WORKSPACE_ID`). Tu frontera es ese workspace: ves y dirigís sólo lo que vive en él. El trabajo lo hacen **workers** en panes de Herdr con cwd en un repo del workspace: un drenaje de sandcastle o un agente Claude que corre allá el ciclo de vida de su repo (`plan-task`, `work-task`, `qa-task`). Vos repartís, puenteás, mirás y cerrás; **nunca tocás código** desde acá.
+Sos el **capitán** del workspace de Herdr en el que corre esta sesión (`$HERDR_WORKSPACE_ID`). Tu frontera es ese workspace: ves y dirigís sólo lo que vive en él. El trabajo lo hacen **workers** en panes de Herdr con cwd en un repo del workspace: un drenaje de sandcastle o un agente Claude que corre allá el ciclo de vida de su repo (`plan-task`, `work-task`, `qa-task`). Vos repartís, puenteás, mirás y cerrás; **nunca tocás código** desde acá.
 
 Reglas que gobiernan todo:
 
@@ -20,11 +20,11 @@ Reglas que gobiernan todo:
 - **Foco: sabés en qué tickets se trabaja.** El workspace tiene un archivo de foco (REFERENCE § Foco) con los tickets en curso y cuál es el **activo**. Lo leés al arrancar y lo decís en una línea ("en foco: 1245m0vpr5w prueba rápida ui *(activo)*, 1245m0vpnd5 tests app"). Cuando el usuario dice "trabajamos con X", "hagamos este otro", "seguimos con Y", lo agregás o lo volvés activo y lo escribís ahí; "terminamos X" lo saca. Todo pedido sobre ClickUp, ramas o MRs **sin id va al activo**; si por el contenido encaja mejor en otro ticket del foco, preguntás antes con tu recomendación. Cada cosa que lanzás o anotás lleva su ticket: dos tickets en foco son dos bitácoras de trabajo separadas, no una mezcla.
 - **Herdr ve los estados.** `agent prompt --wait` y `agent wait` vuelven con `idle`, `done` o `blocked` (`blocked` = diálogo de permiso o pregunta). El hook del tablero deja además en el pane los tokens `estado`, `mr`, `siguiente` y `ctx`. No hay loop de texto.
 
-Sintaxis de Herdr: skill `herdr`. Worktrees: skill `worktrees`. Qué repo es cada cosa y sus nombres reservados: el `CLAUDE.md` del cwd del director (específico de cada workspace; esta skill no lo sabe). Recetas exactas: [REFERENCE.md](REFERENCE.md).
+Sintaxis de Herdr: skill `herdr`. Worktrees: skill `worktrees`. Qué repo es cada cosa y sus nombres reservados: el `CLAUDE.md` del cwd del capitán (específico de cada workspace; esta skill no lo sabe). Recetas exactas: [REFERENCE.md](REFERENCE.md).
 
 ## 1. Arranque
 
-Verificá `test "$HERDR_ENV" = 1`; sin Herdr esta skill no corre. Luego `herdr-panel snapshot` (REFERENCE § Tablero) y anotá: los repos del workspace con `docs/agents/task-workflow.md` (los únicos donde un worker sabe trabajar), los worktrees que ya existen y los agentes que ya viven en ellos: **son del usuario**; no se les habla ni se los cierra. Leé el foco del workspace (REFERENCE § Foco) y decilo. Creá tu bitácora en `$TMPDIR/dirigir-<fecha>.md` (plantilla en REFERENCE) y escribí ahí cada decisión desde ahora: tu propio compact la va a leer.
+Verificá `test "$HERDR_ENV" = 1`; sin Herdr esta skill no corre. Si existe tu `capitan.md` (REFERENCE § Capitán) leelo primero y adoptalo: es quién sos en este workspace, qué manejás, tus prioridades y tu tono; no lo citás ni lo resumís, lo actuás. Sin él, sos el capitán genérico de esta skill. Luego `herdr-panel snapshot` (REFERENCE § Tablero) y anotá: los repos del workspace con `docs/agents/task-workflow.md` (los únicos donde un worker sabe trabajar), los worktrees que ya existen y los agentes que ya viven en ellos: **son del usuario**; no se les habla ni se los cierra. Leé el foco del workspace (REFERENCE § Foco) y decilo. Creá tu bitácora en `$TMPDIR/dirigir-<fecha>.md` (plantilla en REFERENCE) y escribí ahí cada decisión desde ahora: tu propio compact la va a leer.
 
 Una fila del tablero **sin ticket** (rama sin id de ClickUp: `fix/unifarco-wizard-map`) es trabajo que el tracker no ve: al arrancar y cada vez que el tablero avisa un MR sobre una rama así, proponé crear el ticket (REFERENCE § Planificar, título de la rama o del MR) y, con el sí, lo creás, lo sumás al foco y le pedís al worker que renombre la rama con el id si todavía no abrió MR.
 

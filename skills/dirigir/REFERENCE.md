@@ -1,6 +1,6 @@
 # Referencia de `dirigir`
 
-Recetas que la skill consulta a demanda. Lo específico de cada workspace (qué repos hay, cuál es cada cosa, nombres reservados, cómo elegir repo por ticket) vive en el `CLAUDE.md` del cwd del director; los strings de status y la rama base **salen del `docs/agents/task-workflow.md` de cada repo** y los lee el worker.
+Recetas que la skill consulta a demanda. Lo específico de cada workspace (qué repos hay, cuál es cada cosa, nombres reservados, cómo elegir repo por ticket) vive en el `CLAUDE.md` del cwd del capitán; los strings de status y la rama base **salen del `docs/agents/task-workflow.md` de cada repo** y los lee el worker.
 
 ## Tablero
 
@@ -17,6 +17,22 @@ Agentes ajenos (del usuario) en el workspace:
 ```bash
 herdr agent list | jq -r --arg ws "$HERDR_WORKSPACE_ID" '.result.agents[] | select(.workspace_id == $ws and .pane_id != env.HERDR_PANE_ID) | "\(.pane_id) \(.name // "-") \(.cwd)"'
 ```
+
+## Capitán
+
+Quién sos en este workspace: `${XDG_CONFIG_HOME:-$HOME/.config}/dirigir/$HERDR_WORKSPACE_ID.md`. Lo escribe el usuario (o vos con su sí, cuando te dice "a partir de ahora…"). Corto: lo que no entra en una pantalla sobra. Plantilla:
+
+```markdown
+# Capitán de <workspace>
+
+Soy <nombre>. Manejo <qué proyectos y qué es cada uno, dos líneas>.
+
+Prioridades: <qué va primero cuando compite; qué no se toca sin preguntar>.
+
+Tono: <dos líneas>.
+```
+
+Si el usuario pide algo que el archivo contradice (otra prioridad, otro tono), gana el usuario y le proponés actualizar el archivo.
 
 ## Foco
 
@@ -127,7 +143,7 @@ Responder un diálogo de permiso o confirmación: `herdr agent read "$NAME" --so
 ```
 Sos el worker `{NAME}` del repo {REPO}. Tu cwd ya es el repo (o un worktree suyo): cargá su CLAUDE.md y docs/agents/.
 Objetivo: {OBJETIVO: "ejecutar {TASK_ID}" | "planificar {TASK_ID}" | "QA de {TASK_ID}" | pregunta}.
-El director técnico corre en otro pane de Herdr y te lee con `herdr agent read`; vos no lanzás comandos de skill hasta que él te los mande.
+El capitán técnico corre en otro pane de Herdr y te lee con `herdr agent read`; vos no lanzás comandos de skill hasta que él te los mande.
 Primero: en tres líneas, cómo se trabaja este objetivo en este repo y qué comando exacto lo lanza (skill del ciclo, make, o pasos directos). Terminá con `estado: pendiente`.
 Después, cada vez que termines o te trabes, dejá como ÚLTIMO mensaje tres líneas, cada una en su renglón: `estado:` (hecho|bloqueado|pendiente), `mr:` (URL o -), `siguiente:` (una frase). Nada después de eso.
 Si cambiás la forma de algo que consume otro repo (ruta, campo, status), decilo en `siguiente:` con el prefijo `CONTRATO:`.
@@ -163,7 +179,7 @@ Foco: sacar el ticket es reescribir el JSON sin esa clave; si era el activo, el 
 Dos prompts: el comando con la nota como foco, y cuando `agent wait` vuelva, el arranque.
 
 ```
-/compact Continuar: foco en ${XDG_STATE_HOME:-$HOME/.local/state}/dirigir/{WS}.json. {TASK_ID} en {REPO}, rama {RAMA}. Slice en curso: {SLICE}. Verificado: {QUÉ PASÓ EL GATE}. Próximo paso: {ACCIÓN CONCRETA}. Reportar al director con las tres líneas estado/mr/siguiente.
+/compact Continuar: foco en ${XDG_STATE_HOME:-$HOME/.local/state}/dirigir/{WS}.json. {TASK_ID} en {REPO}, rama {RAMA}. Slice en curso: {SLICE}. Verificado: {QUÉ PASÓ EL GATE}. Próximo paso: {ACCIÓN CONCRETA}. Reportar al capitán con las tres líneas estado/mr/siguiente.
 ```
 
 ```
