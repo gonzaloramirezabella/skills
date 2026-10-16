@@ -112,6 +112,25 @@ Sólo preguntas (cualquier repo):
 Sos `{NAME}`, consulta de sólo lectura sobre {REPO}. Respondé con ruta y línea como evidencia; leé, buscá y ejecutá consultas, sin editar nada. Pregunta: {PREGUNTA}. Terminá con `estado: hecho` en su renglón.
 ```
 
+## Cierre
+
+Por ticket, con `ID`, `REPO` y `MR` (la URL del token `mr`):
+
+```bash
+clickup-cli task get "$ID" --subtasks | rg -i 'to do|in progress' && echo "hijas abiertas"
+clickup-cli time list --task "$ID" | rg -q . || echo "sin tiempo registrado"
+BASE=$(rg -o 'Base/integration branch: `\K[^`]+' "$REPO/docs/agents/task-workflow.md")
+(cd "$REPO" && glab mr view "$MR" --output json | jq -r '[.target_branch, .has_conflicts, .head_pipeline.status, .title] | @tsv')
+```
+
+Una rama `hotfix/` apunta a `main`, no a `$BASE`. Tiempo faltante, con la duración que salió de la bitácora (inicio del worker → `estado: hecho`) y **después** de que el usuario diga que sí a ese número:
+
+```bash
+clickup-cli time create --task "$ID" --start "$INICIO_MS" --duration "$((MINUTOS * 60000))" --description "<qué se hizo, una línea>"
+``` El MR que apunta a otra base o tiene conflictos vuelve al worker: `agent prompt` con el arreglo concreto (`retarget a dev`, `rebase sobre origin/dev`).
+
+Foco: sacar el ticket es reescribir el JSON sin esa clave; si era el activo, el siguiente pasa a activo.
+
 ## Nota de continuación para `/compact`
 
 Dos prompts: el comando con la nota como foco, y cuando `agent wait` vuelva, el arranque.

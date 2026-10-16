@@ -53,7 +53,7 @@ Por worker, esperá su marca de fin: drenaje `herdr pane wait-output <pane> --ma
 - **El drenaje se lee en `drain` del snapshot** (fase, slices, gate, QA, MR), no en su log: un `gate: red` o `qa.fail > 0` con `phase: stopped` es un padre que quedó abierto y te toca.
 - **MR abierto ≠ terminado: el loop de QA es tuyo.** Ninguna skill encadena QA → FIX → re-verificación y el sandbox no corre QA, así que lo empujás vos. Con el MR del drenaje abierto, en el worker **agente** de QA de ese repo (abrilo si no hay, con Opus, en el checkout principal) mandá `/qa-task <padre>` como texto. Al `estado:`, si el `[QA]` dejó hijas `[FIX]` (`clickup-cli task get <padre> --subtasks`), mandá `/work-task <padre>` al worker de código; al terminar, `/qa-task <padre>` de nuevo. Repetí hasta cero ❌, con tope de **3 vueltas**: a la tercera con ❌, al usuario con el ítem y tu diagnóstico. Lo único que sube al usuario son los 🙋 y lo que el modo auto le niegue al worker (permiso, dato compartido): pedíselo como acción concreta.
 - **`blocked`**: `agent read --lines 30` y mirá el fondo del pane. Diálogo de permiso o confirmación: respondé con `send-keys` (REFERENCE). Pregunta de dominio: respondela vos o llevala al usuario.
-- **`estado: hecho`**: terminado es sólo `clickup-cli task get <id>` con status *in review* del repo **y** la URL del token `mr`. Si falta algo, mandale el siguiente paso.
+- **`estado: hecho`**: terminado es sólo `clickup-cli task get <id>` con status *in review* del repo **y** la URL del token `mr`. Si falta algo, mandale el siguiente paso. Si está, corré el **cierre por ticket** (paso 6) ahí mismo, sin esperar a los demás.
 - **`estado: bloqueado|pendiente`**: el token `siguiente` dice qué falta; resolvelo o escalalo.
 - **Sos el puente.** Cuando un worker necesita algo que vive en otro repo, vos se lo preguntás al worker del otro repo (o abrís uno de sólo preguntas), resumís la respuesta en pocas líneas y se la das al que la pidió. `CONTRATO:` en `siguiente` es la señal explícita de eso: reenviá el aviso al otro worker. Los workers no se hablan entre sí.
 - **Pregunta de dominio o de alcance** que ningún repo responde: al usuario, con tu recomendación. Anotá en la bitácora que ese worker espera respuesta humana.
@@ -68,6 +68,14 @@ Sólo aplica a workers **agente**. El token `ctx` del pane (lo escribe el hook e
 
 ## 6. Cerrar
 
-Cuando todos los padres están en *in review* **y su `[QA]` no tiene ❌**: pedile a cada worker tres líneas (MR, 🙋 pendientes, qué rompió), copialas a la bitácora, y cerrá **sólo los tabs que creaste** (`herdr tab close <tab-id>`). Los worktrees quedan: los limpia el usuario con la skill `worktrees` después del merge. Reportá al usuario: tabla worker → repo → ticket → MR → QA (✅/❌/🙋) → pendientes.
+**Cierre por ticket**, apenas un padre queda en *in review* con su `[QA]` sin ❌ (checklist exacta en REFERENCE § Cierre):
 
-*Criterio:* QA de cada padre sin ❌, bitácora completa, tabs propios cerrados, agentes ajenos intactos.
+1. **Tarea**: status *in review* en ClickUp, hijas sin *to do* ni *in progress* colgando.
+2. **Tiempo**: `clickup-cli time list --task <id>` tiene al menos una entrada. Si no, calculá lo que duró el worker (inicio y fin en tu bitácora), proponé la entrada al usuario y creala sólo con su sí.
+3. **MR**: existe, apunta a la base del repo (`task-workflow.md`), pipeline verde o en curso, sin conflictos; el título lleva el id.
+4. Pedile al worker tres líneas (MR, 🙋 pendientes, qué rompió) y copialas a la bitácora.
+5. Cerrá el tab de ese worker (`herdr tab close <tab-id>`, **sólo si lo creaste vos**) y sacá el ticket del foco. Los worktrees quedan: los limpia el usuario con la skill `worktrees` después del merge.
+
+Lo que falle en 1–3 no se arregla a mano desde acá: se lo mandás al worker como siguiente paso y el tab sigue abierto. Cuando no queda ninguno, reportá al usuario: tabla worker → repo → ticket → MR → tiempo → QA (✅/❌/🙋) → pendientes.
+
+*Criterio:* cada ticket cerrado pasó la checklist, bitácora completa, tabs propios cerrados, foco sin tickets terminados, agentes ajenos intactos.
