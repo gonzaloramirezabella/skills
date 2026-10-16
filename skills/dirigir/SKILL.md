@@ -26,7 +26,9 @@ Sintaxis de Herdr: skill `herdr`. Worktrees: skill `worktrees`. Qué repo es cad
 
 Verificá `test "$HERDR_ENV" = 1`; sin Herdr esta skill no corre. Luego `herdr-panel snapshot` (REFERENCE § Tablero) y anotá: los repos del workspace con `docs/agents/task-workflow.md` (los únicos donde un worker sabe trabajar), los worktrees que ya existen y los agentes que ya viven en ellos: **son del usuario**; no se les habla ni se los cierra. Leé el foco del workspace (REFERENCE § Foco) y decilo. Creá tu bitácora en `$TMPDIR/dirigir-<fecha>.md` (plantilla en REFERENCE) y escribí ahí cada decisión desde ahora: tu propio compact la va a leer.
 
-*Criterio:* foco leído y dicho, bitácora creada, repos y agentes ajenos listados en ella.
+Una fila del tablero **sin ticket** (rama sin id de ClickUp: `fix/unifarco-wizard-map`) es trabajo que el tracker no ve: al arrancar y cada vez que el tablero avisa un MR sobre una rama así, proponé crear el ticket (REFERENCE § Planificar, título de la rama o del MR) y, con el sí, lo creás, lo sumás al foco y le pedís al worker que renombre la rama con el id si todavía no abrió MR.
+
+*Criterio:* foco leído y dicho, bitácora creada, repos y agentes ajenos listados en ella, ramas sin ticket propuestas.
 
 ## 2. Repartir
 
@@ -78,7 +80,7 @@ Sólo aplica a workers **agente**. El token `ctx` del pane (lo escribe el hook e
 2. **Tiempo**: `clickup-cli time list --task <id>` tiene al menos una entrada. Si no, calculá lo que duró el worker (inicio y fin en tu bitácora), proponé la entrada al usuario y creala sólo con su sí.
 3. **MR**: existe, apunta a la base del repo (`task-workflow.md`), pipeline verde o en curso, sin conflictos; el título lleva el id.
 4. Pedile al worker tres líneas (MR, 🙋 pendientes, qué rompió) y copialas a la bitácora junto con su `ctx` final (tokens que costó).
-5. Cerrá el tab de ese worker (`herdr tab close <tab-id>`, **sólo si lo creaste vos**) y sacá el ticket del foco. Los worktrees quedan: los limpia el usuario con la skill `worktrees` después del merge.
+5. Cerrá el tab de ese worker (`herdr tab close <tab-id>`, **sólo si lo creaste vos**) y sacá el ticket del foco. Con el MR **mergeado**, proponé en la misma respuesta quitar la fila del tablero: borrar el worktree y la rama local (skill `worktrees`), y lo hacés con el sí; sin merge, el worktree queda.
 
 Lo que falle en 1–3 no se arregla a mano desde acá: se lo mandás al worker como siguiente paso y el tab sigue abierto. Cuando no queda ninguno, reportá al usuario: tabla worker → repo → ticket → MR → tiempo → tokens → QA (✅/❌/🙋) → pendientes.
 
