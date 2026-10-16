@@ -27,12 +27,34 @@ Tickets en curso del workspace, durable entre sesiones y compacts: `${XDG_STATE_
   "activo": "1245m0vpr5w",
   "tickets": {
     "1245m0vpr5w": { "titulo": "prueba rápida ui", "repo": "wdetail-app", "rama": "fix/1245m0vpr5w-prueba-rapida-ui", "desde": "2026-10-16" },
-    "1245m0vpnd5": { "titulo": "mejorar tests en la app", "repo": "wdetail-app", "rama": "sandcastle/feature/1245m0vpnd5-mejorar-tests-en-la-app", "desde": "2026-10-15" }
+    "1245m0vpnd5": { "titulo": "mejorar tests en la app", "repo": "wdetail-app", "rama": "sandcastle/feature/1245m0vpnd5-mejorar-tests-en-la-app", "desde": "2026-10-15", "vinculado": "1245m0vq111" }
   }
 }
 ```
 
-Leer: `jq -r '.activo as $a | .tickets | to_entries[] | "\(.key) \(.value.titulo) \(.value.repo)" + (if .key == $a then " (activo)" else "" end)' "$FOCO"`. Escribir siempre el archivo entero con `jq` (`mkdir -p` del directorio la primera vez); título y repo salen de `clickup-cli task get <id>` al agregarlo. Un ticket que el usuario cierra o que llega a *done* en ClickUp se saca; si era el activo, el siguiente del foco pasa a activo y lo decís.
+Leer: `jq -r '.activo as $a | .tickets | to_entries[] | "\(.key) \(.value.titulo) \(.value.repo)" + (if .key == $a then " (activo)" else "" end)' "$FOCO"`. Escribir siempre el archivo entero con `jq` (`mkdir -p` del directorio la primera vez); título y repo salen de `clickup-cli task get <id>` al agregarlo. Un ticket que el usuario cierra o que llega a *done* en ClickUp se saca; si era el activo, el siguiente del foco pasa a activo y lo decís. `vinculado` (opcional) es el padre hermano en otro repo de la misma tarea: se escribe en los dos; el tablero lo muestra como `↔ <id>`.
+
+## Planificar
+
+Desde una descripción (argumento o `[tablero] … planificá: …`):
+
+```bash
+LIST=$(clickup-cli task get "$OTRO_TICKET_DEL_FOCO" --output json | jq -r '.[0].list.id')
+ID=$(clickup-cli task create --list "$LIST" --name "$TITULO" --description @- --output json <<<"$RESUMEN_EN_TRES_LINEAS" | jq -r '.[0].id // .id')
+```
+
+La lista sale de otro ticket del mismo repo (del foco o del último cerrado en la bitácora); sin ninguno, pedísela al usuario (`clickup-cli list list --folder <id>`). Después: foco (activo), worker agente en `$REPO` con Fable 5.1, mandato de planificar, y `/plan-task $ID` como texto. Al `estado: hecho`, `clickup-cli task get "$ID" --subtasks` y reportás `n` hijas (`[SPEC]`, slices, `[QA]`) y si hay slices AFK, ofrecés el drenaje.
+
+## Retro
+
+Commits posteriores al fin del worker (`FIN_ISO` de la bitácora, en ISO 8601) o comentarios de revisión:
+
+```bash
+(cd "$REPO" && glab api "projects/:id/merge_requests/$IID/commits" | jq -r --arg fin "$FIN_ISO" '[.[] | select(.created_at > $fin)] | length')
+(cd "$REPO" && glab mr view "$IID" --output json | jq -r '.user_notes_count')
+```
+
+Cualquiera de los dos mayor que cero, o un drenaje con rojos o `needs-info`, justifica proponer `make sandcastle-retro MR=$IID` (pane sin agente, checkout principal, tab `retro <corto> !<iid>`). Lo que la retro propone se resume al usuario en tres líneas y se queda en pregunta.
 
 ## Nombres
 
