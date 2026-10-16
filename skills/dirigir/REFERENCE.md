@@ -20,7 +20,10 @@ herdr agent list | jq -r --arg ws "$HERDR_WORKSPACE_ID" '.result.agents[] | sele
 
 ## Nombres
 
-Esquema `<corto>-<últimos 5 del task-id>`, p. ej. `api-vnjhx`. Regex de Herdr `[a-z][a-z0-9_-]{0,31}`. Los reservados los declara el `CLAUDE.md` del workspace.
+Dos nombres por worker:
+
+- **Nombre de agente** (`--name`, lo usa Herdr para `agent prompt`/`agent wait`): `<corto>-<últimos 5 del task-id>`, p. ej. `api-vnjhx`. Regex `[a-z][a-z0-9_-]{0,31}`. Los reservados los declara el `CLAUDE.md` del workspace.
+- **Label del tab** (`--label`, lo lee el usuario en la barra): `<corto> · <qué hace>`, tres o cuatro palabras, sin el id: `api · fix logs crm`, `app · build ipad`, `drenaje vpnd5 tests app`, `api · qa unifarco`. Cuando el tab cambia de propósito (terminó el build y ahora corre metro), `herdr tab rename <tab-id> "<nuevo label>"`.
 
 ## Lanzar un drenaje (sandcastle)
 
