@@ -7,7 +7,7 @@ Recetas que la skill consulta a demanda. Lo específico de cada workspace (qué 
 `herdr-panel` es el binario del plugin `bcnquark.panel` (en `~/.local/bin` tras el setup). Devuelve el estado del workspace en JSON: repos, worktrees, agentes unidos por cwd, MRs y tokens.
 
 ```bash
-herdr-panel snapshot --no-report | jq -c '.Rows[] | {repo: .RepoName, path: .Path, branch: .Branch, task: .TaskID, main: .Main, mr: .MR.web_url, stack: .Stack, agents: [.Agents[]? | {pane: .pane_id, name, status: .agent_status, tokens}]}'
+herdr-panel snapshot --no-report | jq -c '.Rows[] | {repo: .RepoName, path: .Path, branch: .Branch, task: .TaskID, main: .Main, mr: .MR.web_url, stack: .Stack, drain: .Drain, agents: [.Agents[]? | {pane: .pane_id, name, status: .agent_status, tokens}]}'
 ```
 
 Repos "con ciclo" = los que tienen `docs/agents/task-workflow.md`: `test -f "$REPO/docs/agents/task-workflow.md"`. El tablero visual es el tab `Tablero` del mismo workspace (`herdr plugin pane open --plugin bcnquark.panel --entrypoint board`); el usuario lo mira, vos usás el JSON.
@@ -44,6 +44,8 @@ Planificar o codificar: primero el worktree de la tarea (skill `worktrees`; `BRA
 herdr worktree create --cwd "$REPO" --branch "$BRANCH" --base "origin/$BASE" --path "$REPO/.claude/worktrees/$SLUG" --label "$SLUG" --no-focus
 CWD="$REPO/.claude/worktrees/$SLUG"
 ```
+
+`drain` es el `state.json` que deja el worker (`phase` draining/qa/closing/done/stopped/failed, `slices` done/total, `gate`, `qa` pass/fail/human, `mr`): dice en qué va un drenaje sin leer su log.
 
 QA o sólo preguntas: `CWD="$REPO"` (checkout principal). Si el repo declara stack por slot (`make slot N=` en `task-workflow.md` § Host), QA puede correr en el worktree de la tarea: tecla `u` en su fila del tablero (o `make slot N=<libre> && make up` ahí) y `l` abre la app en su puerto; el slot nace con la base vacía, así que antes `make install` o un dump. Después, igual para todos:
 
