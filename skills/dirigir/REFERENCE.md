@@ -18,6 +18,22 @@ Agentes ajenos (del usuario) en el workspace:
 herdr agent list | jq -r --arg ws "$HERDR_WORKSPACE_ID" '.result.agents[] | select(.workspace_id == $ws and .pane_id != env.HERDR_PANE_ID) | "\(.pane_id) \(.name // "-") \(.cwd)"'
 ```
 
+## Foco
+
+Tickets en curso del workspace, durable entre sesiones y compacts: `${XDG_STATE_HOME:-$HOME/.local/state}/dirigir/$HERDR_WORKSPACE_ID.json`. El tablero lo lee y marca con `★` la fila del activo y con `☆` las demás en foco.
+
+```json
+{
+  "activo": "1245m0vpr5w",
+  "tickets": {
+    "1245m0vpr5w": { "titulo": "prueba rápida ui", "repo": "wdetail-app", "rama": "fix/1245m0vpr5w-prueba-rapida-ui", "desde": "2026-10-16" },
+    "1245m0vpnd5": { "titulo": "mejorar tests en la app", "repo": "wdetail-app", "rama": "sandcastle/feature/1245m0vpnd5-mejorar-tests-en-la-app", "desde": "2026-10-15" }
+  }
+}
+```
+
+Leer: `jq -r '.activo as $a | .tickets | to_entries[] | "\(.key) \(.value.titulo) \(.value.repo)" + (if .key == $a then " (activo)" else "" end)' "$FOCO"`. Escribir siempre el archivo entero con `jq` (`mkdir -p` del directorio la primera vez); título y repo salen de `clickup-cli task get <id>` al agregarlo. Un ticket que el usuario cierra o que llega a *done* en ClickUp se saca; si era el activo, el siguiente del foco pasa a activo y lo decís.
+
 ## Nombres
 
 Dos nombres por worker:
@@ -101,7 +117,7 @@ Sos `{NAME}`, consulta de sólo lectura sobre {REPO}. Respondé con ruta y líne
 Dos prompts: el comando con la nota como foco, y cuando `agent wait` vuelva, el arranque.
 
 ```
-/compact Continuar: {TASK_ID} en {REPO}, rama {RAMA}. Slice en curso: {SLICE}. Verificado: {QUÉ PASÓ EL GATE}. Próximo paso: {ACCIÓN CONCRETA}. Reportar al director con las tres líneas estado/mr/siguiente.
+/compact Continuar: foco en ${XDG_STATE_HOME:-$HOME/.local/state}/dirigir/{WS}.json. {TASK_ID} en {REPO}, rama {RAMA}. Slice en curso: {SLICE}. Verificado: {QUÉ PASÓ EL GATE}. Próximo paso: {ACCIÓN CONCRETA}. Reportar al director con las tres líneas estado/mr/siguiente.
 ```
 
 ```
