@@ -1,0 +1,66 @@
+#!/bin/bash
+set -euo pipefail
+
+usage() {
+  cat >&2 <<'USAGE'
+usage: decision agregar --pregunta TEXT --opciones "a) …|b) …" --recomendacion LETRA [--ticket ID] [--destructiva]
+       decision listar
+       decision vencidas [--minutos N]
+       decision resolver N RESPUESTA
+       decision aplicar N            (resolves with the recommendation)
+USAGE
+  exit 2
+}
+
+[ -n "${HERDR_WORKSPACE_ID:-}" ] || { echo "HERDR_WORKSPACE_ID unset" >&2; exit 1; }
+dir="${XDG_STATE_HOME:-$HOME/.local/state}/dirigir"
+file="$dir/$HERDR_WORKSPACE_ID-decisiones.json"
+mkdir -p "$dir"
+[ -s "$file" ] || echo '{"siguiente":1,"decisiones":[]}' > "$file"
+now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+save() { jq "$@" "$file" > "$file.tmp" && mv "$file.tmp" "$file"; }
+
+cmd="${1:-}"; shift || true
+case "$cmd" in
+  agregar)
+    pregunta="" opciones="" recomendacion="" ticket="" destructiva=false
+    while [ $# -gt 0 ]; do
+      case "$1" in
+        --pregunta) pregunta="$2"; shift 2 ;;
+        --opciones) opciones="$2"; shift 2 ;;
+        --recomendacion) recomendacion="$2"; shift 2 ;;
+        --ticket) ticket="$2"; shift 2 ;;
+        --destructiva) destructiva=true; shift ;;
+        *) usage ;;
+      esac
+    done
+    [ -n "$pregunta" ] && [ -n "$opciones" ] && [ -n "$recomendacion" ] || usage
+    id="$(jq -r '.siguiente' "$file")"
+    save --arg id "$id" --arg p "$pregunta" --arg o "$opciones" --arg r "$recomendacion" --arg t "$ticket" --argjson d "$destructiva" --arg now "$now" \
+      '.decisiones += [{id: ($id|tonumber), ticket: $t, pregunta: $p, opciones: $o, recomendacion: $r, destructiva: $d, creada: $now, recordada: false, respuesta: null, resuelta: null}] | .siguiente += 1'
+    echo "$id"
+    ;;
+  listar)
+    jq -r --arg now "$now" '.decisiones[] | select(.respuesta == null)
+      | "\(.id). [\(.ticket // "-")] \(.pregunta) — \(.opciones) — recomiendo \(.recomendacion)\(if .destructiva then " — DESTRUCTIVA, espera siempre" else " — default a los 15 min" end) — \(((($now|fromdate) - (.creada|fromdate)) / 60)|floor) min"' "$file"
+    ;;
+  vencidas)
+    minutos=15
+    [ "${1:-}" = "--minutos" ] && minutos="$2"
+    jq -r --arg now "$now" --argjson m "$minutos" '.decisiones[] | select(.respuesta == null and .destructiva == false and (($now|fromdate) - (.creada|fromdate)) >= ($m * 60)) | "\(.id) \(.recomendacion)"' "$file"
+    ;;
+  resolver)
+    [ $# -ge 2 ] || usage
+    save --argjson id "$1" --arg r "$2" --arg now "$now" '(.decisiones[] | select(.id == $id)) |= (.respuesta = $r | .resuelta = $now)'
+    ;;
+  aplicar)
+    [ $# -ge 1 ] || usage
+    save --argjson id "$1" --arg now "$now" '(.decisiones[] | select(.id == $id)) |= (.respuesta = ("default: " + .recomendacion) | .resuelta = $now)'
+    ;;
+  recordada)
+    [ $# -ge 1 ] || usage
+    save --argjson id "$1" '(.decisiones[] | select(.id == $id)) |= (.recordada = true)'
+    ;;
+  *) usage ;;
+esac
