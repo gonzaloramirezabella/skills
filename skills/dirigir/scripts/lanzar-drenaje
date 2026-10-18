@@ -2,11 +2,11 @@
 set -euo pipefail
 
 usage() {
-  echo "usage: lanzar-drenaje --repo PATH --label TEXT --base BRANCH (--parent ID[,ID] | --tasks ID[,ID]) [--model opus]" >&2
+  echo "usage: lanzar-drenaje --repo PATH --label TEXT --base BRANCH (--parent ID[,ID] | --tasks ID[,ID]) [--model opus] [--dry-run]" >&2
   exit 2
 }
 
-repo="" label="" base="" parent="" tasks="" model="opus"
+repo="" label="" base="" parent="" tasks="" model="opus" dry=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --repo) repo="$2"; shift 2 ;;
@@ -15,6 +15,7 @@ while [ $# -gt 0 ]; do
     --parent) parent="$2"; shift 2 ;;
     --tasks) tasks="$2"; shift 2 ;;
     --model) model="$2"; shift 2 ;;
+    --dry-run) dry="DRY_RUN=1"; shift ;;
     *) usage ;;
   esac
 done
@@ -29,9 +30,9 @@ pane="$(jq -r '.result.root_pane.pane_id' <<<"$out")"
 sleep 2
 
 if [ -n "$parent" ]; then
-  herdr pane run "$pane" make sandcastle-work PARENT="$parent" BASE="$base" MODEL="$model" >/dev/null
+  herdr pane run "$pane" make sandcastle-work PARENT="$parent" BASE="$base" MODEL="$model" $dry >/dev/null
 else
-  herdr pane run "$pane" make sandcastle-tasks TASKS="$tasks" BASE="$base" MODEL="$model" >/dev/null
+  herdr pane run "$pane" make sandcastle-tasks TASKS="$tasks" BASE="$base" MODEL="$model" $dry >/dev/null
 fi
 
 jq -nc --arg tab "$tab" --arg pane "$pane" --arg cwd "$repo" --arg parent "$parent" --arg tasks "$tasks" \

@@ -43,7 +43,7 @@ case "$cmd" in
     ;;
   listar)
     jq -r --arg now "$now" '.decisiones[] | select(.respuesta == null)
-      | "\(.id). [\(.ticket // "-")] \(.pregunta) — \(.opciones) — recomiendo \(.recomendacion)\(if .destructiva then " — DESTRUCTIVA, espera siempre" else " — default a los 15 min" end) — \(((($now|fromdate) - (.creada|fromdate)) / 60)|floor) min"' "$file"
+      | "\(.id). [\(if .ticket == "" then "-" else .ticket end)] \(.pregunta) — \(.opciones) — recomiendo \(.recomendacion)\(if .destructiva then " — DESTRUCTIVA, espera siempre" else " — default a los 15 min" end) — \(((($now|fromdate) - (.creada|fromdate)) / 60)|floor) min"' "$file"
     ;;
   vencidas)
     minutos=15

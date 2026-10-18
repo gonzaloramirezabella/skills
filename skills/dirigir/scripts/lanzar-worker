@@ -93,9 +93,13 @@ Respondé sólo \`estado: pendiente\` en su renglón y esperá el comando.
 Después, cada vez que termines o te trabes, dejá como ÚLTIMO mensaje tres líneas, cada una en su renglón: \`estado:\` (hecho|bloqueado|pendiente), \`mr:\` (URL o -), \`siguiente:\` (una frase). Nada después de eso.
 Si cambiás la forma de algo que consume otro repo (ruta, campo, status), decilo en \`siguiente:\` con el prefijo \`CONTRATO:\`."
 
-herdr agent prompt "$name" "$mandato" --wait --timeout 600000 >/dev/null
+status="$(herdr agent prompt "$name" "$mandato" --wait --timeout 600000 | jq -r '.result.agent.agent_status // "unknown"')"
+if [ "$status" = "blocked" ]; then
+  jq -nc --arg tab "$tab" --arg pane "$pane" --arg name "$name" --arg cwd "$cwd" --arg model "$model" \
+    '{tab: $tab, pane: $pane, name: $name, cwd: $cwd, model: $model, status: "blocked", comando: ""}'
+  exit 3
+fi
 
-status="idle"
 if [ -n "$comando" ]; then
   herdr pane send-keys "$pane" esc >/dev/null
   sleep 1

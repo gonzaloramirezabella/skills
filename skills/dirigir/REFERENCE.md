@@ -54,7 +54,10 @@ Leer: `jq -r '.activo as $a | .tickets | to_entries[] | "\(.key) \(.value.titulo
 
 Lo que necesita al usuario (lista de la regla **Orden**) no se pregunta suelto: se encola en `${XDG_STATE_HOME:-$HOME/.local/state}/dirigir/$HERDR_WORKSPACE_ID-decisiones.json` con `scripts/decision`, y el trabajo que no depende de eso sigue.
 
+`$SKILL` es el directorio base de esta skill, el que anuncia el mensaje de carga (`Base directory for this skill: …`).
+
 ```bash
+SKILL=/ruta/que/anuncio/la/carga
 D="$SKILL/scripts/decision"
 bash "$D" agregar --ticket 1245m0vpr5w --pregunta "¿Cargo 90 min de tiempo?" --opciones "a) sí|b) otro número" --recomendacion a   # imprime el id
 bash "$D" agregar --pregunta "¿Borro el worktree sucio de app-vpnd5?" --opciones "a) borrar|b) dejar" --recomendacion b --destructiva
@@ -103,7 +106,7 @@ Dos nombres por worker:
 ## Lanzar un drenaje (sandcastle)
 
 ```bash
-bash "$SKILL/scripts/lanzar-drenaje" --repo "$REPO" --label "$LABEL" --base "$BASE" --parent "$TASK_ID"
+bash "$SKILL/scripts/lanzar-drenaje" --repo "$REPO" --label "$LABEL" --base "$BASE" --parent "$TASK_ID"   # --dry-run muestra la cola sin drenar
 # → {"tab":…,"pane":…,"cwd":…,"parent":…,"fin":"herdr pane wait-output <pane> --match \"── Resumen ──\" --timeout 600000"}
 herdr pane wait-output "$pane" --match '── Resumen ──' --timeout 600000
 herdr pane read "$pane" --source recent-unwrapped --lines 30
@@ -132,7 +135,7 @@ Qué hace, en orden: con `--branch`, crea el worktree `$REPO/.claude/worktrees/<
 - `CLAUDE_ARGS`: vacío. Los workers ya corren en modo auto (el clasificador aprueba lo rutinario y sólo frena lo destructivo); `acceptEdits` sería un retroceso (vuelve a preguntar cada Bash). `--dangerously-skip-permissions` sólo dentro de un contenedor, como hace sandcastle, nunca en un worktree del host.
 - `--branch` según la convención del repo (`feature/<id>-<slug>`); QA corre en el checkout principal salvo que el repo declare stack por slot (`make slot N=` en `task-workflow.md` § Host): entonces en el worktree de la tarea con su slot levantado (`make slot N=<libre> && make up` ahí; el slot nace con la base vacía, así que antes `make install` o un dump).
 
-Si el script falla con `agent_not_ready` después del reintento de confianza, leé el pane (`herdr pane read "$pane" --source visible --lines 12`) y respondé con `send-keys`.
+Si el script termina con `status: blocked` (código 3), el mandato chocó con un diálogo: `herdr pane read "$pane" --source visible --lines 12` y respondé con `send-keys`; después mandá el comando vos. Si falla con `agent_not_ready` después del reintento de confianza, leé el pane (`herdr pane read "$pane" --source visible --lines 12`) y respondé con `send-keys`.
 
 ## Estado
 
