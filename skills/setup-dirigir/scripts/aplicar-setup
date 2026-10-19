@@ -54,8 +54,8 @@ tablero() {
     fi
     if [ -f "$env" ]; then
       local empty
-      empty="$(grep -E '^[A-Za-z_][A-Za-z0-9_]*=$' "$env" | cut -d= -f1 | paste -sd ' ' -)"
-      [ -z "$empty" ] && ok "$name: datos de prueba completos" || warn "$name: claves vacías en $env: $empty"
+      empty="$( (grep -E '^[A-Za-z_][A-Za-z0-9_]*=$' "$env" || true) | cut -d= -f1 | paste -sd ' ' -)"
+      [ -z "$empty" ] && ok "$name: datos de prueba completos" || printf '·  %s: claves vacías en %s (llenalas a mano): %s\n' "$name" "$env" "$empty"
     else
       warn "$name: falta $env"
     fi

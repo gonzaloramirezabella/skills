@@ -20,7 +20,7 @@ Verificá `test "$HERDR_ENV" = 1`; sin Herdr esta skill no corre. Después:
 bash "$S" --tablero
 ```
 
-Descubre los repos del workspace por los cwd de sus panes (`git rev-parse --git-common-dir`, así los worktrees cuentan para su repo) y marca con `✅/⚠️`: dirigir instalada en el cwd, `capitan.md` del workspace, reglas `allow` globales, hook del tablero, y por repo con `docs/agents/task-workflow.md` su archivo de datos de prueba y qué claves tiene vacías. Los repos sin `task-workflow.md` se listan como ignorados: ningún worker sabe trabajar ahí; si uno tiene que entrar, primero `/setup-skills` en ese repo.
+Descubre los repos del workspace por los cwd de sus panes (`git rev-parse --git-common-dir`, así los worktrees cuentan para su repo) y marca con `✅/⚠️`: dirigir instalada en el cwd, `capitan.md` del workspace, reglas `allow` globales, hook del tablero, y por repo con `docs/agents/task-workflow.md` su archivo de datos de prueba. Las claves vacías salen como línea `·` de recordatorio: las llena el usuario a mano, no son ⚠️ ni pregunta. Los repos sin `task-workflow.md` se listan como ignorados: ningún worker sabe trabajar ahí; si uno tiene que entrar, primero `/setup-skills` en ese repo.
 
 Si sale `0` (todo ✅), terminá: no hay nada que preguntar. Si falta un repo que sí es del workspace (no tenía pane abierto), agregalo a mano a la spec.
 
@@ -73,4 +73,4 @@ Qué hace el script, en orden e idempotente: instala `dirigir` en `cwd` si falta
 
 ## 4. Listo
 
-Cuando el tablero del script salga en verde, o con ⚠️ sólo por claves vacías que el usuario va a llenar a mano: abrí `/dirigir` en el pane (o `/dirigir` de nuevo si ya corría: la skill se lee al cargar). Re-correr `/setup-dirigir` después sólo hace falta para cambiar al capitán o sumar un repo; el tablero del paso 1 lo dice.
+Cuando el tablero del script salga en verde (las líneas `·` de claves vacías no cuentan): abrí `/dirigir` en el pane (o `/dirigir` de nuevo si ya corría: la skill se lee al cargar). Re-correr `/setup-dirigir` después sólo hace falta para cambiar al capitán o sumar un repo; el tablero del paso 1 lo dice.
