@@ -106,7 +106,7 @@ apply() {
     env="$PRUEBAS/$name.env"
     seed="$(jq -r ".repos[$i].semilla // empty" "$spec")"
     keys="$(jq -r ".repos[$i].claves // [] | .[]" "$spec")"
-    [ -n "$keys" ] || keys="$DEFAULT_KEYS"
+    [ -n "$keys" ] || [ -n "$seed" ] || keys="$DEFAULT_KEYS"
     if [ ! -f "$env" ]; then
       printf '# Datos de prueba de %s. Los lee el worker que lanza el capitán (dirigir). Nunca van a un repo.\n# Un dato por línea, CLAVE=valor. Agregá lo que un worker pregunte más de una vez.\n' "$name" > "$env"
       chmod 600 "$env"

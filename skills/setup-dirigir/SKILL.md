@@ -63,7 +63,7 @@ Escribí en `$TMPDIR` el borrador de `capitan.md` (si cambió) y la spec:
 }
 ```
 
-`capitan` es opcional (sin él no se toca el existente); `claves` vacío usa las cinco por defecto; `semilla` es opcional. Mostrá la spec y decile al usuario la línea exacta, con rutas absolutas:
+`capitan` es opcional (sin él no se toca el existente); `claves` vacío y sin semilla usa las cinco por defecto; con semilla, sólo las claves de la semilla; `semilla` es opcional. Mostrá la spec y decile al usuario la línea exacta, con rutas absolutas:
 
 ```
 ! bash <ruta absoluta de $S> /tmp/dirigir-setup-wH.json
