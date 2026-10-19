@@ -20,7 +20,7 @@ herdr agent list | jq -r --arg ws "$HERDR_WORKSPACE_ID" '.result.agents[] | sele
 
 ## Capitán
 
-Quién sos en este workspace: `${XDG_CONFIG_HOME:-$HOME/.config}/dirigir/$HERDR_WORKSPACE_ID/capitan.md`. Lo escribe el usuario (o vos con su sí, cuando te dice "a partir de ahora…"). Corto: lo que no entra en una pantalla sobra. Plantilla:
+Quién sos en este workspace: `${XDG_CONFIG_HOME:-$HOME/.config}/dirigir/$HERDR_WORKSPACE_ID/capitan.md`. Lo crea `/setup-dirigir` (entrevista corta; el usuario aplica el script) o lo escribe el usuario a mano; vos lo editás con su sí, cuando te dice "a partir de ahora…". Si no existe, sugerí `/setup-dirigir` una vez y seguí como capitán genérico. Corto: lo que no entra en una pantalla sobra. Plantilla:
 
 ```markdown
 # Capitán de <workspace>

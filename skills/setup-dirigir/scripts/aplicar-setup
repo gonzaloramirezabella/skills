@@ -1,0 +1,153 @@
+#!/bin/bash
+set -euo pipefail
+
+usage() {
+  cat >&2 <<USO
+usage: aplicar-setup --tablero [--workspace WS] [--cwd DIR]
+       aplicar-setup SPEC.json
+USO
+  exit 2
+}
+
+CFG="${XDG_CONFIG_HOME:-$HOME/.config}"
+SETTINGS="$HOME/.claude/settings.json"
+PRUEBAS="$HOME/.secrets/pruebas"
+ALLOW_BASE='["Bash(make:*)","Bash(clickup-cli:*)","Bash(glab:*)","Bash(herdr:*)","Bash(herdr-panel:*)","Bash(git fetch:*)","Bash(git worktree:*)","Bash(git switch:*)","Bash(git add:*)","Bash(git commit:*)"]'
+DEFAULT_KEYS="USUARIO_PRUEBA PASSWORD_PRUEBA ADMIN_BACKOFFICE_USUARIO ADMIN_BACKOFFICE_PASSWORD AWS_PROFILE"
+
+ok() { printf '✅ %s\n' "$1"; }
+warn() { printf '⚠️ %s\n' "$1"; FALLAS=$((FALLAS + 1)); }
+
+discover_repos() {
+  local ws="$1"
+  herdr pane list --workspace "$ws" | jq -r '.result.panes[].cwd' | sort -u | while read -r cwd; do
+    [ -d "$cwd" ] || continue
+    local common
+    common="$(git -C "$cwd" rev-parse --path-format=absolute --git-common-dir 2>/dev/null)" || continue
+    dirname "$common"
+  done | sort -u
+}
+
+tablero() {
+  local ws="$1" cwd="$2"; shift 2
+  local repos=("$@")
+  FALLAS=0
+  echo "Workspace $ws, capitán en $cwd"
+  [ "${HERDR_ENV:-}" = 1 ] && ok "corre dentro de Herdr" || warn "HERDR_ENV no es 1: dirigir no corre fuera de Herdr"
+  [ -f "$cwd/.agents/skills/dirigir/SKILL.md" ] && ok "dirigir instalada en $cwd" || warn "dirigir no instalada en $cwd"
+  [ -s "$CFG/dirigir/$ws/capitan.md" ] && ok "capitan.md de $ws" || warn "falta $CFG/dirigir/$ws/capitan.md"
+  if [ -f "$SETTINGS" ]; then
+    local missing
+    missing="$(jq -r --argjson base "$ALLOW_BASE" '($base - (.permissions.allow // [])) | join(", ")' "$SETTINGS")"
+    [ -z "$missing" ] && ok "reglas allow en $SETTINGS" || warn "reglas allow que faltan: $missing"
+    jq -r '.hooks.Stop[]?.hooks[]?.command // empty' "$SETTINGS" | grep -q herdr-panel-report && ok "hook del tablero" || warn "hook del tablero no instalado en $SETTINGS (herdr-panel-report.sh)"
+  else
+    warn "no existe $SETTINGS"
+  fi
+  for repo in "${repos[@]}"; do
+    local name env
+    name="$(basename "$repo")"
+    env="$PRUEBAS/$name.env"
+    if [ ! -f "$repo/docs/agents/task-workflow.md" ]; then
+      printf '·  %s: ignorado, sin docs/agents/task-workflow.md (ningún worker sabe trabajar ahí)\n' "$name"
+      continue
+    fi
+    if [ -f "$env" ]; then
+      local empty
+      empty="$(grep -E '^[A-Za-z_][A-Za-z0-9_]*=$' "$env" | cut -d= -f1 | paste -sd ' ' -)"
+      [ -z "$empty" ] && ok "$name: datos de prueba completos" || warn "$name: claves vacías en $env: $empty"
+    else
+      warn "$name: falta $env"
+    fi
+  done
+  [ "$FALLAS" -eq 0 ]
+}
+
+apply() {
+  local spec="$1"
+  local ws cwd capitan
+  ws="$(jq -r '.workspace' "$spec")"
+  cwd="$(jq -r '.cwd' "$spec")"
+  capitan="$(jq -r '.capitan // empty' "$spec")"
+
+  if [ ! -f "$cwd/.agents/skills/dirigir/SKILL.md" ]; then
+    echo "instalando dirigir en $cwd"
+    (cd "$cwd" && npx -y skills add gonzaloramirezabella/skills --skill dirigir -y)
+  fi
+
+  if [ -n "$capitan" ]; then
+    local dest="$CFG/dirigir/$ws/capitan.md"
+    mkdir -p "$(dirname "$dest")"
+    if [ -f "$dest" ] && ! cmp -s "$capitan" "$dest"; then
+      cp "$dest" "$dest.bak-$(date +%Y%m%d%H%M%S)"
+      echo "capitan.md: respaldado y reemplazado"
+    fi
+    cp "$capitan" "$dest"
+  fi
+
+  mkdir -p "$(dirname "$SETTINGS")"
+  [ -f "$SETTINGS" ] || echo '{}' > "$SETTINGS"
+  local allow
+  allow="$(jq -c --argjson base "$ALLOW_BASE" '$base + (.allow_extra // [])' "$spec")"
+  if [ -n "$(jq -r --argjson a "$allow" '($a - (.permissions.allow // [])) | join(",")' "$SETTINGS")" ]; then
+    cp "$SETTINGS" "$SETTINGS.bak-$(date +%Y%m%d%H%M%S)"
+    jq --argjson a "$allow" '.permissions.allow = ((.permissions.allow // []) + $a | unique)' "$SETTINGS" > "$SETTINGS.tmp"
+    mv "$SETTINGS.tmp" "$SETTINGS"
+    echo "settings: reglas allow agregadas"
+  fi
+
+  mkdir -p "$PRUEBAS" && chmod 700 "$PRUEBAS"
+  local n i
+  n="$(jq '.repos | length' "$spec")"
+  for ((i = 0; i < n; i++)); do
+    local repo name env seed keys added=""
+    repo="$(jq -r ".repos[$i].path" "$spec")"
+    name="$(basename "$repo")"
+    env="$PRUEBAS/$name.env"
+    seed="$(jq -r ".repos[$i].semilla // empty" "$spec")"
+    keys="$(jq -r ".repos[$i].claves // [] | .[]" "$spec")"
+    [ -n "$keys" ] || keys="$DEFAULT_KEYS"
+    if [ ! -f "$env" ]; then
+      printf '# Datos de prueba de %s. Los lee el worker que lanza el capitán (dirigir). Nunca van a un repo.\n# Un dato por línea, CLAVE=valor. Agregá lo que un worker pregunte más de una vez.\n' "$name" > "$env"
+      chmod 600 "$env"
+    fi
+    if [ -n "$seed" ] && [ -f "$seed" ]; then
+      keys="$(printf '%s\n%s\n' "$keys" "$(grep -oE '^[A-Za-z_][A-Za-z0-9_]*=' "$seed" | tr -d =)" | awk 'NF && !seen[$0]++')"
+    fi
+    for key in $keys; do
+      grep -qE "^$key=" "$env" && continue
+      if [ -n "$seed" ] && [ -f "$seed" ] && grep -qE "^$key=." "$seed"; then
+        grep -E "^$key=" "$seed" | head -1 >> "$env"
+      else
+        echo "$key=" >> "$env"
+      fi
+      added="$added $key"
+    done
+    [ -z "$added" ] || echo "$name.env: claves agregadas:$added"
+  done
+
+  local repos=()
+  while read -r r; do repos+=("$r"); done < <(jq -r '.repos[].path' "$spec")
+  echo
+  tablero "$ws" "$cwd" "${repos[@]}"
+}
+
+[ $# -ge 1 ] || usage
+if [ "$1" = "--tablero" ]; then
+  shift
+  ws="${HERDR_WORKSPACE_ID:-}"; cwd="$PWD"
+  while [ $# -gt 0 ]; do
+    case "$1" in
+      --workspace) ws="$2"; shift 2 ;;
+      --cwd) cwd="$2"; shift 2 ;;
+      *) usage ;;
+    esac
+  done
+  [ -n "$ws" ] || { echo "sin workspace: pasá --workspace o corré dentro de Herdr" >&2; exit 2; }
+  repos=()
+  while read -r r; do repos+=("$r"); done < <(discover_repos "$ws")
+  tablero "$ws" "$cwd" "${repos[@]}"
+else
+  [ -f "$1" ] || usage
+  apply "$1"
+fi
